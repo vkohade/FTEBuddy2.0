@@ -1,0 +1,25 @@
+{
+  "name": "@doc2code/mcp-servers",
+  "version": "1.0.0",
+  "description": "MCP Servers for GitHub Copilot Agent Orchestration",
+  "type": "module",
+  "keywords": [
+    "mcp-server",
+    "github-copilot"
+  ],
+  "author": "Doc2Code Team",
+  "license": "MIT",
+  "dependencies": {
+    "@fluentui/react-components": "^9.69.0",
+    "@fluentui/react-icons": "^2.0.309",
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "mammoth": "^1.6.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.24",
+    "@types/react-dom": "^18.3.7"
+  }
+}

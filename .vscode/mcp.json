@@ -1,0 +1,61 @@
+{
+    "servers": {
+        "WordParser": {
+            "command": "node",
+            "args": [
+                "./mcp-servers/word-parser-mcp.js"
+            ],
+            "type": "stdio"
+        },
+        "TemplateManager": {
+            "command": "node",
+            "args": [
+                "./mcp-servers/template-manager-mcp.js"
+            ],
+            "type": "stdio"
+        },
+        "PCFControlManager": {
+            "command": "node",
+            "args": [
+                "./mcp-servers/pcf-control-manager-mcp.js"
+            ],
+            "type": "stdio"
+        },
+        "PluginManager": {
+            "command": "node",
+            "args": [
+                "./mcp-servers/plugin-manager-mcp.js"
+            ],
+            "type": "stdio"
+        },
+        "StorybookManager": {
+            "command": "node",
+            "args": [
+                "./mcp-servers/storybook-manager-mcp.js"
+            ],
+            "type": "stdio"
+        },
+        "PerformanceManager": {
+            "command": "node",
+            "args": [
+                "./mcp-servers/performance-manager-mcp.js"
+            ],
+            "type": "stdio"
+        },
+        "TestingManager": {
+            "command": "node",
+            "args": [
+                "./mcp-servers/testing-manager-mcp.js"
+            ],
+            "type": "stdio"
+        },
+        "HighchartsManager": {
+            "command": "node",
+            "args": [
+                "./mcp-servers/highcharts-manager-mcp.js"
+            ],
+            "type": "stdio"
+        }
+    },
+    "inputs": []
+}
