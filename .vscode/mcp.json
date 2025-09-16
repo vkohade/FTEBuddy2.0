@@ -55,6 +55,27 @@
                 "./mcp-servers/highcharts-manager-mcp.js"
             ],
             "type": "stdio"
+        },
+        "FileSystemManager": {
+            "command": "node",
+            "args": [
+                "./mcp-servers/filesystem-manager-mcp.js"
+            ],
+            "type": "stdio"
+        },
+        "ServiceFabricControllerManager": {
+            "command": "node",
+            "args": [
+                "./mcp-servers/servicefabric-controller-manager-mcp.js"
+            ],
+            "type": "stdio"
+        },
+        "WebPageFetcher": {
+            "command": "node",
+            "args": [
+                "./mcp-servers/webpage-fetcher-mcp-ultimate.js"
+            ],
+            "type": "stdio"
         }
     },
     "inputs": []

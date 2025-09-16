@@ -1,0 +1,59 @@
+{
+    "mcp.servers": {
+        "FileSystemManager": {
+            "enabled": true,
+            "description": "Universal File System MCP Server for reading and referencing files from entire hard drive",
+            "capabilities": [
+                "file_reading",
+                "directory_listing", 
+                "pattern_search",
+                "code_patterns",
+                "file_info"
+            ]
+        },
+        "WordParser": {
+            "enabled": true,
+            "description": "Parse and extract structured content from Word documents"
+        },
+        "TemplateManager": {
+            "enabled": true,
+            "description": "Scaffold basic project structure and generate initial files"
+        },
+        "PCFControlManager": {
+            "enabled": true,
+            "description": "Generate and modify PCF control components with Fluent UI v9"
+        },
+        "PluginManager": {
+            "enabled": true,
+            "description": "Generate and modify Dynamics 365 plugins"
+        },
+        "StorybookManager": {
+            "enabled": true,
+            "description": "Generate Storybook stories and testing scenarios"
+        },
+        "PerformanceManager": {
+            "enabled": true,
+            "description": "Analyze and optimize code performance"
+        },
+        "TestingManager": {
+            "enabled": true,
+            "description": "Generate comprehensive testing suites"
+        },
+        "HighchartsManager": {
+            "enabled": true,
+            "description": "Generate accessible, theme-aware Highcharts components for data visualization"
+        }
+    },
+    "files.associations": {
+        "*.mcp.js": "javascript",
+        "mcp.json": "jsonc"
+    },
+    "json.schemas": [
+        {
+            "fileMatch": [
+                "**/mcp.json"
+            ],
+            "url": "https://raw.githubusercontent.com/modelcontextprotocol/specification/main/schema/mcp.json"
+        }
+    ]
+}
