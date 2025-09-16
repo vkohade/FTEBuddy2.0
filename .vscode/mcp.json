@@ -7,6 +7,13 @@
             ],
             "type": "stdio"
         },
+        "ContentIntelligenceManager": {
+            "command": "node",
+            "args": [
+                "./mcp-servers/content-intelligence-manager-mcp.js"
+            ],
+            "type": "stdio"
+        },
         "TemplateManager": {
             "command": "node",
             "args": [

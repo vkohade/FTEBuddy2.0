@@ -10,8 +10,6 @@
   "author": "Doc2Code Team",
   "license": "MIT",
   "dependencies": {
-    "@fluentui/react-components": "^9.69.0",
-    "@fluentui/react-icons": "^2.0.309",
     "@modelcontextprotocol/sdk": "^1.0.0",
     "mammoth": "^1.6.0"
   },
