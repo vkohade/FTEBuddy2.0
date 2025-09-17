@@ -929,7 +929,9 @@ async function buildAndValidate(args, requestId) {
       "NEXT STEPS:",
       "1. Run the build commands above",
       "2. Fix any compilation errors",
-      "3. Go back to the 'implement_work_item' tool and implement all the remaining work items"
+      "3. After successful build, use 'implement_all_work_items' tool again to ensure all work items are processed",
+      "4. Run 'validate_implementation' tool to verify completeness",
+      "5. Repeat this cycle until all work items are fully implemented"
     ];
 
     const result = {
@@ -941,7 +943,8 @@ async function buildAndValidate(args, requestId) {
         "dotnet build",
         "dotnet test"
       ],
-      next_tool: "implement_work_item"
+      next_tool: "implement_all_work_items",
+      workflow_continuation: "After successful build, use 'implement_all_work_items' to ensure comprehensive coverage of all work items, then validate again"
     };
 
     return {
@@ -993,75 +996,48 @@ async function validateImplementation(args, requestId) {
     }
 
     const instructions = [
-      "✅ IMPLEMENTATION VALIDATION INSTRUCTIONS:",
+      "✅ WORK ITEM VALIDATION INSTRUCTIONS:",
       "",
-      "OBJECTIVE: Validate that all work items are implemented and suggest missing functionality.",
+      "OBJECTIVE: Validate ALL work items by checking individual acceptance criteria.",
       "",
-      `WORK ITEMS SUMMARY:`,
-      `- Epics: ${workItems.epics?.length || 0}`,
-      `- User Stories: ${workItems.userStories?.length || 0}`,
-      `- Tasks: ${workItems.tasks?.length || 0}`,
+      `WORK ITEMS: ${(workItems.epics?.length || 0) + (workItems.userStories?.length || 0) + (workItems.tasks?.length || 0)} total | CONTROLLERS: ${existingControllers.join(', ')}`,
       "",
-      `EXISTING CONTROLLERS: ${existingControllers.join(', ')}`,
+      "VALIDATION PROCESS:",
+      "1. Check each work item's acceptance_criteria array individually",
+      "2. Map every criterion to actual code implementation",
+      "3. Verify functionality matches work item requirements",
       "",
-      "VALIDATION CHECKLIST:",
-      "",
-      "1. EPIC COVERAGE:",
-      "   - Review each epic to ensure user stories address all requirements",
-      "   - Verify that epic acceptance criteria are met",
-      "   - Check that all epic deliverables are implemented",
-      "",
-      "2. USER STORY IMPLEMENTATION:",
-      "   - Each user story should map to specific controller endpoints",
-      "   - Verify acceptance criteria are translated into working features",
-      "   - Check that user story dependencies are resolved",
-      "",
-      "3. TASK COMPLETION:",
-      "   - Each task should result in specific code implementation",
-      "   - Verify technical tasks are properly implemented",
-      "   - Check that all task deliverables exist",
-      "",
-      "4. API ENDPOINT COVERAGE:",
-      "   - Ensure all required CRUD operations are implemented",
-      "   - Verify business logic endpoints exist",
-      "   - Check that all data retrieval needs are met",
-      "",
-      "5. DATA MODEL COMPLETENESS:",
-      "   - Verify all required data models exist",
-      "   - Check that model relationships are properly defined",
-      "   - Ensure validation rules are implemented",
-      "",
-      "6. ERROR HANDLING COVERAGE:",
-      "   - Check that all endpoints have proper error handling",
-      "   - Verify logging is implemented consistently",
-      "   - Ensure user-friendly error messages exist",
+      "VALIDATION CHECKS:",
+      "- Each work item's acceptance_criteria array is 100% implemented",
+      "- Every acceptance criterion maps to working code",
+      "- All API endpoints match work item specifications",
+      "- Business logic satisfies work item requirements",
+      "- Error handling meets work item acceptance criteria",
       "",
       "MISSING FUNCTIONALITY ANALYSIS:",
-      "1. Compare work item requirements with implemented endpoints",
-      "2. Identify gaps in functionality",
-      "3. List missing controllers or endpoints",
-      "4. Note incomplete business logic implementations",
+      "1. Compare each work item's acceptance_criteria with actual code",
+      "2. Identify unimplemented acceptance criteria",  
+      "3. Calculate completion percentage per work item (0%, partial, 100%)",
+      "4. List gaps between work item specs and existing endpoints",
       "",
-      "QUALITY ASSURANCE CHECKS:",
-      "- All controllers follow consistent patterns",
-      "- HTTP status codes are used appropriately",
-      "- Request/response models are properly structured",
-      "- Documentation is adequate",
-      "- Code follows naming conventions",
+      "QUALITY CHECKS:",
+      "- Acceptance criteria are verifiable through code execution",
+      "- Controllers implement work item functionality as specified",
+      "- HTTP endpoints match work item requirements",
+      "- Business logic satisfies acceptance criteria",
       "",
-      "RE-IMPLEMENTATION GUIDANCE:",
-      "If missing functionality is found:",
-      "1. Use 'identify_required_controllers' for missing controllers",
-      "2. Use 'create_controllers' for new controllers needed",
-      "3. Use 'implement_work_item' for incomplete work items",
-      "4. Use 'build_and_validate' after changes",
+      "IF INCOMPLETE WORK ITEMS FOUND:",
+      "1. Use 'implement_all_work_items' to process remaining incomplete items",
+      "2. Use 'build_and_validate' after implementation",
+      "3. Re-run 'validate_implementation' until 100% completion",
+      "4. Only declare complete when ALL acceptance criteria are implemented",
       "",
-      "COMPLETION CRITERIA:",
-      "- All epics have corresponding implementations",
-      "- All user stories map to working endpoints",
-      "- All tasks result in actual code artifacts",
+      "COMPLETION CRITERIA (ALL REQUIRED):",
+      "- Every work item's acceptance_criteria array is 100% implemented",
+      "- All acceptance criteria map to working code functionality",
       "- Solution builds without errors",
-      "- All endpoints respond with expected data structures"
+      "- No unimplemented acceptance criteria remain",
+      "- Individual work item completion score is 100% for all items"
     ];
 
     const result = {
@@ -1075,7 +1051,8 @@ async function validateImplementation(args, requestId) {
       },
       existing_controllers: existingControllers,
       controllers_path: controllersPath,
-      next_tool: "implement_work_item"
+      next_tool: "implement_all_work_items",
+      recommended_workflow: "Use 'implement_all_work_items' for comprehensive processing, then 'build_and_validate', then 'validate_implementation' again to verify completeness"
     };
 
     return {
@@ -1370,7 +1347,10 @@ async function getInstructions(args, requestId) {
       "3. create_controllers - Create controllers following EchoController pattern",
       "4. implement_all_work_items - Systematically implement ALL work items (epics, user stories, tasks)",
       "5. build_and_validate - Build solution and fix any issues",
-      "6. validate_implementation - Ensure all work items are complete"
+      "6. implement_all_work_items - Run AGAIN to catch any missed work items from first pass",
+      "7. build_and_validate - Build again after second implementation pass",
+      "8. validate_implementation - Ensure all work items are complete",
+      "9. REPEAT steps 6-8 until validate_implementation shows 100% completion"
     ]
   } : {
     success: true,
