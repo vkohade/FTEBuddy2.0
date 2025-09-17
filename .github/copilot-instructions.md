@@ -87,7 +87,6 @@ Always use `get_instructions` tool from each MCP server as the **first step** to
 **Available Tools**:
 - `generate_component`: Create React component requirements and specifications
 - `generate_styles`: Generate styling requirements using Fluent UI design tokens
-- `validate_accessibility`: Check component accessibility compliance
 - `get_instructions`: Get PCF development instructions
 
 ### **HighchartsManager MCP Server** (`highcharts-manager-mcp`)
