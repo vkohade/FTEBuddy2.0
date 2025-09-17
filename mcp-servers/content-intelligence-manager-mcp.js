@@ -1,8 +1,10 @@
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import fs from "fs";
+import path from "path";
 
-const SERVER_VERSION = "0.2.0";
+const SERVER_VERSION = "0.3.0";
 
 async function getInstructions(args) {
   const { instruction_type = "analysis" } = args;
@@ -22,7 +24,7 @@ async function getInstructions(args) {
 
   // Return guidance for producing the required Agile JSON (Epic → User Story → Task).
   const schemaGuidance = {
-    overview: "Produce structured Agile requirements JSON (Epics -> User Stories -> Tasks). Store the json in work-items.json for downstream processing (e.g., ADO work item creation). Use the document directory of the parsed docx files as the base path for storing the json file.",
+    overview: "Produce structured Agile requirements JSON (Epics -> User Stories -> Tasks).",
     required_top_level: ["epics", "metadata"],
     schema: {
       epics: [
@@ -117,9 +119,9 @@ async function getInstructions(args) {
     },
     integration_flow: [
       "1. Use word-parser-mcp.parse_document to extract content.",
-      "2. External agent (not this server) interprets parsed content.",
+      "2. Github copilot agent interprets parsed content.",
       "3. Agent assembles JSON strictly to this schema.",
-      "4. JSON can be sent to downstream (e.g., ADO work item creation)."
+      "4. JSON can be sent to downstream to start implementing the work items."
     ]
   };
 
@@ -132,6 +134,131 @@ async function getInstructions(args) {
       })
     }]
   };
+}
+
+async function createWorkItemsJson(args) {
+  const {
+    work_items,
+    document_directory,
+    source_document,
+    file_name = "work-items.json",
+    overwrite = true
+  } = args || {};
+
+  if (!work_items) {
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({ error: "Missing required 'work_items' argument" })
+      }]
+    };
+  }
+
+  let data;
+  if (typeof work_items === "string") {
+    try {
+      data = JSON.parse(work_items);
+    } catch (e) {
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({ error: "Failed to parse work_items JSON string", details: e.message })
+        }]
+      };
+    }
+  } else {
+    data = work_items;
+  }
+
+  // Basic schema validation (lightweight)
+  const validation = {
+    has_epics: Array.isArray(data?.epics),
+    has_metadata: typeof data?.metadata === "object",
+    epic_id_format_ok: true,
+    user_story_id_format_ok: true,
+    task_id_format_ok: true,
+    errors: []
+  };
+
+  if (!validation.has_epics) validation.errors.push("Top-level 'epics' array missing.");
+  if (!validation.has_metadata) validation.errors.push("Top-level 'metadata' object missing.");
+
+  const idPattern = {
+    epic: /^E\d+$/,
+    userStory: /^US\d+$/,
+    task: /^T\d+$/
+  };
+
+  if (validation.has_epics) {
+    for (const epic of data.epics) {
+      if (epic?.id && !idPattern.epic.test(epic.id)) validation.epic_id_format_ok = false;
+      if (Array.isArray(epic?.user_stories)) {
+        for (const us of epic.user_stories) {
+          if (us?.id && !idPattern.userStory.test(us.id)) validation.user_story_id_format_ok = false;
+          if (Array.isArray(us?.tasks)) {
+            for (const t of us.tasks) {
+              if (t?.id && !idPattern.task.test(t.id)) validation.task_id_format_ok = false;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  const targetDir =
+    document_directory ||
+    (source_document ? path.dirname(source_document) : null) ||
+    process.cwd();
+
+  try {
+    if (!fs.existsSync(targetDir)) {
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({ error: "Target directory does not exist", targetDir })
+        }]
+      };
+    }
+
+    const targetPath = path.join(targetDir, file_name);
+
+    if (!overwrite && fs.existsSync(targetPath)) {
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({ error: "File exists and overwrite=false", path: targetPath })
+        }]
+      };
+    }
+
+    // Auto add generated_at if missing
+    if (!data.metadata) data.metadata = {};
+    if (!data.metadata.generated_at) data.metadata.generated_at = new Date().toISOString();
+
+    fs.writeFileSync(targetPath, JSON.stringify(data, null, 2), "utf-8");
+
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          status: "success",
+          path: targetPath,
+          validation,
+          bytes_written: fs.statSync(targetPath).size
+        })
+      }]
+    };
+  } catch (e) {
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          error: "Failed to write work-items file",
+          details: e.message
+        })
+      }]
+    };
+  }
 }
 
 const server = new Server(
@@ -156,6 +283,21 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         },
         required: []
       }
+    },
+    {
+      name: "create_work_items_json",
+      description: "Persist the assembled Agile JSON (Epics → User Stories → Tasks) to work-items.json in the document directory.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          work_items: { description: "Object or JSON string of the work items schema.", anyOf: [{ type: "object" }, { type: "string" }] },
+          document_directory: { type: "string", description: "Directory where file will be written (preferred)." },
+          source_document: { type: "string", description: "Path to original docx (used to derive directory if document_directory not provided)." },
+          file_name: { type: "string", default: "work-items.json", description: "Optional override of output filename." },
+          overwrite: { type: "boolean", default: true }
+        },
+        required: ["work_items"]
+      }
     }
   ]
 }));
@@ -164,6 +306,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   switch (request.params.name) {
     case "get_instructions":
       return await getInstructions(request.params.arguments || {});
+    case "create_work_items_json":
+      return await createWorkItemsJson(request.params.arguments || {});
     default:
       throw new Error(`Unknown tool: ${request.params.name}`);
   }
@@ -171,4 +315,4 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 const transport = new StdioServerTransport();
 await server.connect(transport);
-console.error("ContentIntelligenceManager MCP server running (schema-guidance only) v" + SERVER_VERSION);
+console.error("ContentIntelligenceManager MCP server running (schema-guidance + writer) v" + SERVER_VERSION);
