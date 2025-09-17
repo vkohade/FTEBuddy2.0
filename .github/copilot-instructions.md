@@ -32,11 +32,20 @@ Always use `get_instructions` tool from each MCP server as the **first step** to
 4. **Documentation**: Use StorybookManager for interactive documentation
 5. **Quality Assurance**: Use TestingManager and PerformanceManager for validation
 
+### **ServiceFabric Microservice Workflow**
+1. **Service Creation**: Use ServiceFabricWorkItemsManager to create microservices with official Microsoft PowerApps CoreServices templates
+2. **Controller Analysis**: Use ServiceFabricWorkItemsManager to analyze work items and identify required API controllers
+3. **Controller Scaffolding**: Use ServiceFabricWorkItemsManager to create controllers following EchoController patterns
+4. **Work Item Implementation**: Use ServiceFabricWorkItemsManager to systematically implement all work items (epics, user stories, tasks)
+5. **Build & Validation**: Use ServiceFabricWorkItemsManager to build solution and validate implementation completeness
+
 ## Integration Points
 
 **WordParser** → **ContentIntelligenceManager**: Structured work item data with hierarchy
 **ContentIntelligenceManager** → **TemplateManager**: Work item context for project scaffolding
+**ContentIntelligenceManager** → **ServiceFabricWorkItemsManager**: Work item context for microservice implementation
 **TemplateManager** → **PCFControlManager/PluginManager**: Project structure for implementation
+**ServiceFabricWorkItemsManager** → **TestingManager**: Microservice code for comprehensive testing
 **All Servers** → **TestingManager**: Code for comprehensive testing
 **All Servers** → **PerformanceManager**: Code for optimization analysis
 
@@ -145,3 +154,33 @@ Always use `get_instructions` tool from each MCP server as the **first step** to
 - `generate_integration_tests`: Generate integration tests for workflows
 - `analyze_coverage`: Analyze test coverage and suggest improvements
 - `get_instructions`: Get testing strategy instructions
+
+### **ServiceFabric Work Items Manager MCP Server** (`servicefabric-workitems-manager-mcp`)
+**Purpose**: Create and manage Service Fabric microservices for Microsoft PowerApps CoreServices platform using official templates and implement work items systematically
+**Connection**: `stdio://servicefabric-workitems-manager-mcp`
+
+**Available Tools**:
+- `create_solution`: Create PowerApps CoreServices microservice using official Microsoft templates (CAPCoreServices.Highway csapprepo)
+  - **Parameters**: `team_name` (string), `application_name` (string), `service_name` (string), `base_path` (string), `dev_only` (boolean, optional)
+  - **Purpose**: Scaffold complete Service Fabric application with microservice using official Microsoft PowerApps CoreServices templates
+- `identify_required_controllers`: Analyze work items and provide natural language instructions for identifying controllers needed
+  - **Parameters**: `work_items_path` (string), `project_path` (string), `application_name` (string), `service_name` (string)
+  - **Purpose**: Review work items to determine what API controllers are needed based on frontend interactions and business requirements
+- `create_controllers`: Provide instructions for creating controllers following EchoController pattern
+  - **Parameters**: `project_path` (string), `application_name` (string), `service_name` (string), `controller_names` (array of strings)
+  - **Purpose**: Generate instructions for creating Web API controllers that follow the established EchoController template pattern
+- `implement_work_item`: Provide natural language instructions for implementing a specific work item across all relevant controllers
+  - **Parameters**: `work_item` (object), `project_path` (string), `quality_level` (enum: basic/production/enterprise, optional)
+  - **Purpose**: Generate detailed implementation guidance for individual work items including business logic and API endpoints
+- `build_and_validate`: Build the solution and provide guidance for fixing issues
+  - **Parameters**: `project_path` (string), `application_name` (string)
+  - **Purpose**: Execute dotnet build commands and provide troubleshooting guidance for compilation errors
+- `validate_implementation`: Validate that all work items are implemented and suggest missing functionality
+  - **Parameters**: `work_items_path` (string), `project_path` (string), `application_name` (string), `service_name` (string)
+  - **Purpose**: Cross-reference work items against implemented code to identify gaps and missing features
+- `implement_all_work_items`: Systematically implement all work items from the JSON file, iterating through each epic, user story, and task
+  - **Parameters**: `work_items_path` (string), `project_path` (string), `application_name` (string), `service_name` (string), `quality_level` (enum: basic/production/enterprise, optional)
+  - **Purpose**: Process entire work items hierarchy and provide comprehensive implementation instructions for all requirements
+- `get_instructions`: Get comprehensive instructions for all tools with input parameters
+  - **Parameters**: `tool_name` (string, optional - specific tool or 'all')
+  - **Purpose**: Retrieve detailed usage instructions, examples, and workflow guidance for ServiceFabric development

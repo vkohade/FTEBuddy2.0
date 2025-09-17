@@ -783,11 +783,9 @@ async function implementWorkItem(args, requestId) {
       `3. Implement validation rules for: ${work_item.tasks?.map(t => t.title).join(', ') || 'input parameters'}`,
       `4. Add business methods to handle: ${work_item.tasks?.length || 0} tasks`,
       "",
-      `${quality_level.toUpperCase()} QUALITY STANDARDS:`,
-      ...qualityInstructions[quality_level],
       "",
       "IMPLEMENTATION STEPS:",
-      "1. **ANALYZE**: Read the work item details and determine which controller(s) should be modified",
+      "1. **ANALYZE**: Read the work item details and determine which files need to be modified",
       "2. **SELECT**: Choose the appropriate files and projects based on the functionality described",
       "3. **IMPLEMENT**: ",
       "   b. Add new endpoints / controllers if required, otherwise modify the implementation of existing ones based on work item requirements",
@@ -818,7 +816,7 @@ async function implementWorkItem(args, requestId) {
       "",
       "NEXT STEPS:",
       "2. Use 'build_and_validate' tool to verify implementation",
-      "3. Continue with remaining work items"
+      "3. Continue with remaining todos for the other tasks, keep iterating until all todos are completed",
     ];
 
     const result = {
@@ -831,7 +829,7 @@ async function implementWorkItem(args, requestId) {
         tasks_count: work_item.tasks?.length || 0
       },
     quality_level: quality_level,
-      next_tool: "build_and_validate"
+      next_tool: "implement_work_item",
     };
 
     return {
@@ -931,7 +929,7 @@ async function buildAndValidate(args, requestId) {
       "NEXT STEPS:",
       "1. Run the build commands above",
       "2. Fix any compilation errors",
-      "3. Use 'validate_implementation' tool to check completeness"
+      "3. Go back to the 'implement_work_item' tool and implement all the remaining work items"
     ];
 
     const result = {
@@ -943,7 +941,7 @@ async function buildAndValidate(args, requestId) {
         "dotnet build",
         "dotnet test"
       ],
-      next_tool: "validate_implementation"
+      next_tool: "implement_work_item"
     };
 
     return {
@@ -1076,7 +1074,8 @@ async function validateImplementation(args, requestId) {
         existing_controllers: existingControllers.length
       },
       existing_controllers: existingControllers,
-      controllers_path: controllersPath
+      controllers_path: controllersPath,
+      next_tool: "implement_work_item"
     };
 
     return {
@@ -1122,102 +1121,19 @@ async function implementAllWorkItems(args, requestId) {
     const todoItems = [];
     let todoId = 1;
     
-    // Controller mapping based on work item analysis
-    const controllerMapping = {
-      'conversion': 'ConversionRatio',
-      'ratio': 'ConversionRatio', 
-      'lead': 'ConversionRatio',
-      'opportunity': 'ConversionRatio',
-      'revenue': 'Revenue',
-      'won': 'Revenue',
-      'opportunities': 'Revenue',
-      'dashboard': 'Dashboard',
-      'unified': 'Dashboard',
-      'api': 'Dashboard',
-      'pcf': 'Dashboard',
-      'time': 'TimeFilter',
-      'filter': 'TimeFilter',
-      'period': 'TimeFilter',
-      'date': 'TimeFilter',
-      'health': 'Health',
-      'monitoring': 'Health',
-      'infrastructure': 'Health',
-      'logging': 'Health'
-    };
-
-    function determineController(workItem) {
-      const text = `${workItem.title || ''} ${workItem.description || ''} ${workItem.purpose || ''}`.toLowerCase();
-      
-      for (const [keyword, controller] of Object.entries(controllerMapping)) {
-        if (text.includes(keyword)) {
-          return controller;
-        }
-      }
-      
-      // Default fallback based on epic positioning
-      if (workItem.id && workItem.id.includes('E2')) return 'ConversionRatio';
-      if (workItem.id && workItem.id.includes('E3')) return 'Revenue';
-      if (workItem.id && workItem.id.includes('E4')) return 'TimeFilter';
-      if (workItem.id && workItem.id.includes('E5')) return 'Dashboard';
-      
-      return 'Dashboard'; // Default fallback
-    }
 
     // Create todo items for all work items
     if (workItems.epics && workItems.epics.length > 0) {
       for (const epic of workItems.epics) {
-        const epicController = determineController(epic);
-        todoItems.push({
-          id: todoId++,
-          title: `Implement Epic ${epic.id}`,
-          description: `Execute implement_work_item tool for Epic ${epic.id} (${epic.title}) with production quality level. Work item details: ${JSON.stringify({work_item: epic, project_path, quality_level})}`,
-          status: "not-started",
-          work_item_type: "epic",
-          work_item: epic,
-          mcp_tool_call: {
-            method: "tools/call",
-            params: {
-              name: "implement_work_item",
-              arguments: {
-                work_item: epic,
-                project_path: project_path,
-                quality_level: quality_level
-              }
-            }
-          }
-        });
-        totalWorkItems++;
         
         // Create todos for user stories within this epic
         if (epic.user_stories && epic.user_stories.length > 0) {
           for (const userStory of epic.user_stories) {
-            const usController = determineController(userStory) || epicController;
-            todoItems.push({
-              id: todoId++,
-              title: `Implement User Story ${userStory.id}`,
-              description: `Execute implement_work_item tool for User Story ${userStory.id} (${userStory.title}) with production quality level. Work item details: ${JSON.stringify({work_item: userStory, project_path, quality_level})}`,
-              status: "not-started",
-              work_item_type: "user_story",
-              work_item: userStory,
-              epic_id: epic.id,
-              mcp_tool_call: {
-                method: "tools/call",
-                params: {
-                  name: "implement_work_item",
-                  arguments: {
-                    work_item: userStory,
-                    project_path: project_path,
-                    quality_level: quality_level
-                  }
-                }
-              }
-            });
-            totalWorkItems++;
+            
             
             // Create todos for tasks within this user story
             if (userStory.tasks && userStory.tasks.length > 0) {
               for (const task of userStory.tasks) {
-                const taskController = determineController(task) || usController;
                 todoItems.push({
                   id: todoId++,
                   title: `Implement Task ${task.id}`,
@@ -1270,7 +1186,8 @@ async function implementAllWorkItems(args, requestId) {
     return {
       jsonrpc: "2.0",
       id: requestId,
-      result: { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] }
+      result: { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] },
+
     };
 
   } catch (error) {
