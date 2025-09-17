@@ -19,10 +19,7 @@ async function scaffoldPcfControl(args) {
     }
 
     const commands = [
-      `cd ${projectDir} && pac pcf init --namespace ${namespace} --name ${control_name} --template ${template_type} --run-npm-install`,
-      `cd "${control_name}"`,
-      `npm install @fluentui/react-components @fluentui/react-icons`,
-      `npm install --save-dev @types/react @types/react-dom`,
+      `cd ${projectDir} && pac pcf init --namespace ${namespace} --name ${control_name} --template ${template_type} --run-npm-install`
     ];
 
     const results = commands.map((cmd) => {
@@ -39,16 +36,10 @@ async function scaffoldPcfControl(args) {
           type: "text",
           text: JSON.stringify({
             project_name: control_name,
-            project_directory: controlDir,
+            pcf_control_directory: controlDir,
             base_directory,
             template_type,
             commands_executed: results,
-            next_steps: [
-              "Configure TypeScript strict mode",
-              "Set up Fluent UI v9 theme provider",
-              "Create base component structure",
-              "Configure build pipeline",
-            ],
             success: true,
           }),
         },
@@ -73,17 +64,16 @@ async function scaffoldPlugin(args) {
   const { plugin_name, entity, message = "create", base_directory = process.cwd() } = args;
 
   try {
-    const pluginsDir = `${base_directory}/Plugins`;
-    const projectDir = `${pluginsDir}/${plugin_name.toLowerCase()}-plugin`;
+    const projectDir = `${base_directory}/Plugins`;
+    const pluginName = `${plugin_name.toLowerCase()}-plugin`;
+    const pluginDir = `${projectDir}/${pluginName}`;
+
+    if (!fs.existsSync(projectDir)) {
+      fs.mkdirSync(projectDir, { recursive: true });
+    }
 
     const commands = [
-      `mkdir -p "${pluginsDir}"`,
-      `cd "${pluginsDir}"`,
-      `pac plugin init --outputDirectory ${plugin_name.toLowerCase()}-plugin`,
-      `cd "${plugin_name.toLowerCase()}-plugin"`,
-      `dotnet add package Microsoft.CrmSdk.CoreAssemblies`,
-      `dotnet add package Microsoft.CrmSdk.Workflow`,
-      `dotnet add package Microsoft.PowerPlatform.Dataverse.Client`,
+      `cd "${projectDir}" && pac plugin init --outputDirectory ${pluginName}`
     ];
 
     const results = commands.map((cmd) => {
@@ -100,17 +90,11 @@ async function scaffoldPlugin(args) {
           type: "text",
           text: JSON.stringify({
             project_name: plugin_name,
-            project_directory: projectDir,
+            plugin_directory: pluginDir,
             base_directory,
             target_entity: entity,
             message_type: message,
             commands_executed: results,
-            next_steps: [
-              "Configure plugin registration",
-              "Implement business logic",
-              "Add error handling and logging",
-              "Create unit tests",
-            ],
             success: true,
           }),
         },
