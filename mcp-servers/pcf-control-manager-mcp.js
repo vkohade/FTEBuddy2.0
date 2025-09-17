@@ -25,7 +25,15 @@ async function generateComponent(args) {
       context_usage: "Use ComponentFramework.Context<IInputs> for theme and RTL detection",
       theme_detection: "context.fluentDesignLanguage?.isDarkTheme",
       rtl_detection: "context.userSettings.isRTL",
-      update_view: "Render root element in updateView method"
+      update_view: "Render root element in updateView method",
+      IInputsAndIOutputs: "Define IInputs and IOutputs Type. They should match with ControlManifest.",
+      lifecycle_methods: [
+        "init - Initialize state and context",
+        "updateView - Render Root element with current props/state and change return type of method to React.Element if necessary",
+        "getOutputs - Return any output properties",
+        "destroy - Clean up resources if needed"
+      ],
+      check_Errors: "Ensure no TypeScript errors in the generated code"
     }
   };
 
