@@ -309,7 +309,7 @@ async function createWorkItemsJson(args) {
 async function authenticateADO() {
   return new Promise(async (resolve, reject) => {
     const pca = new msal.PublicClientApplication(msalConfig);
-    
+
     // Try to get cached token first
     const accounts = await pca.getTokenCache().getAllAccounts();
     if (accounts.length > 0) {
@@ -318,7 +318,7 @@ async function authenticateADO() {
           account: accounts[0],
           scopes: ['499b84ac-1321-427f-aa17-267ca6975798/.default'] // Azure DevOps scope
         });
-        
+
         if (result && result.accessToken) {
           resolve(result.accessToken);
           return;
@@ -327,12 +327,12 @@ async function authenticateADO() {
         console.error('Silent token acquisition failed, falling back to interactive');
       }
     }
-    
+
     // Interactive authentication with local server callback
     const server = http.createServer(async (req, res) => {
       const url = new URL(req.url, `http://localhost:${ADO_CONFIG.authCallbackPort}`);
       const code = url.searchParams.get('code');
-      
+
       if (code) {
         try {
           const tokenRequest = {
@@ -340,12 +340,12 @@ async function authenticateADO() {
             scopes: ['499b84ac-1321-427f-aa17-267ca6975798/.default'],
             redirectUri: `http://localhost:${ADO_CONFIG.authCallbackPort}`
           };
-          
+
           const response = await pca.acquireTokenByCode(tokenRequest);
-          
+
           res.writeHead(200, { 'Content-Type': 'text/html' });
           res.end('<html><body><h2>Authentication successful!</h2><p>You can close this window and return to the application.</p></body></html>');
-          
+
           server.close();
           resolve(response.accessToken);
         } catch (error) {
@@ -356,23 +356,24 @@ async function authenticateADO() {
         }
       }
     });
-    
+
     server.listen(ADO_CONFIG.authCallbackPort, async () => {
       const authCodeUrlParameters = {
         scopes: ['499b84ac-1321-427f-aa17-267ca6975798/.default'],
         redirectUri: `http://localhost:${ADO_CONFIG.authCallbackPort}`
       };
-      
+
       const authUrl = await pca.getAuthCodeUrl(authCodeUrlParameters);
       console.error(`Opening browser for authentication: ${authUrl}`);
       await open(authUrl);
     });
-    
+
     // Timeout after 5 minutes
-    setTimeout(() => {
+    const AUTH_TIMEOUT_MS = parseInt(process.env.ADO_AUTH_TIMEOUT_MS || '300000', 10); // Default 5 minutes
+    const authTimeout = setTimeout(() => {
       server.close();
-      reject(new Error('Authentication timeout'));
-    }, 300000);
+      reject(new Error(`Authentication timeout after ${AUTH_TIMEOUT_MS}ms`));
+    }, AUTH_TIMEOUT_MS);
   });
 }
 
@@ -400,14 +401,14 @@ function mapWorkItemType(itemType) {
 
 function createWorkItemPatch(item, itemType, parentPath = null) {
   const patch = [];
-  
+
   // Add title
   patch.push({
     op: 'add',
     path: '/fields/System.Title',
     value: item.title
   });
-  
+
   // Add description
   if (item.description) {
     patch.push({
@@ -416,11 +417,11 @@ function createWorkItemPatch(item, itemType, parentPath = null) {
       value: item.description
     });
   }
-  
+
   // Add acceptance criteria
   if (item.acceptance_criteria && item.acceptance_criteria.length > 0) {
-    const criteriaHtml = '<ul>' + 
-      item.acceptance_criteria.map(c => `<li>${c}</li>`).join('') + 
+    const criteriaHtml = '<ul>' +
+      item.acceptance_criteria.map(c => `<li>${c}</li>`).join('') +
       '</ul>';
     patch.push({
       op: 'add',
@@ -428,20 +429,20 @@ function createWorkItemPatch(item, itemType, parentPath = null) {
       value: criteriaHtml
     });
   }
-  
+
   // Add area and iteration paths
   patch.push({
     op: 'add',
     path: '/fields/System.AreaPath',
     value: ADO_CONFIG.areaPath
   });
-  
+
   patch.push({
     op: 'add',
     path: '/fields/System.IterationPath',
     value: ADO_CONFIG.iterationPath
   });
-  
+
   // Task-specific fields
   if (itemType === 'task') {
     if (item.purpose) {
@@ -451,7 +452,7 @@ function createWorkItemPatch(item, itemType, parentPath = null) {
         value: `<strong>Purpose:</strong> ${item.purpose}<br/><br/><strong>Implementation Details:</strong> ${item.implementation_details || 'TBD'}`
       });
     }
-    
+
     if (item.estimated_effort) {
       // Parse effort (e.g., "3d" -> 24 hours, "8h" -> 8 hours)
       const effort = item.estimated_effort.toLowerCase();
@@ -461,7 +462,7 @@ function createWorkItemPatch(item, itemType, parentPath = null) {
       } else if (effort.endsWith('h')) {
         hours = parseInt(effort);
       }
-      
+
       if (hours > 0) {
         patch.push({
           op: 'add',
@@ -470,7 +471,7 @@ function createWorkItemPatch(item, itemType, parentPath = null) {
         });
       }
     }
-    
+
     if (item.assignee && item.assignee !== 'unassigned') {
       patch.push({
         op: 'add',
@@ -478,21 +479,21 @@ function createWorkItemPatch(item, itemType, parentPath = null) {
         value: item.assignee
       });
     }
-    
+
     // Set state based on status
     const stateMap = {
       'todo': 'New',           // Changed from 'To Do' to 'New'
       'in-progress': 'Active', // Changed from 'In Progress' to 'Active'
       'done': 'Done'
     };
-    
+
     patch.push({
       op: 'add',
       path: '/fields/System.State',
       value: stateMap[item.status] || 'New' // Default to 'New'
     });
   }
-  
+
   // Add parent link if provided
   if (parentPath) {
     patch.push({
@@ -504,25 +505,25 @@ function createWorkItemPatch(item, itemType, parentPath = null) {
       }
     });
   }
-  
+
   // Add tags for tracking
   patch.push({
     op: 'add',
     path: '/fields/System.Tags',
     value: `FTEBuddy; Generated; ${item.id}`
   });
-  
+
   return patch;
 }
 
 async function createADOWorkItems(args) {
-  const { 
+  const {
     work_items_path,
     dry_run = false,
     create_hierarchy = true,
     skip_existing = true
   } = args || {};
-  
+
   if (!work_items_path) {
     return {
       content: [{
@@ -531,13 +532,13 @@ async function createADOWorkItems(args) {
       }]
     };
   }
-  
+
   // Validate ADO configuration
   if (!ADO_CONFIG.organization || !ADO_CONFIG.project) {
     return {
       content: [{
         type: "text",
-        text: JSON.stringify({ 
+        text: JSON.stringify({
           error: "Missing Azure DevOps configuration",
           required: ["ADO_ORGANIZATION", "ADO_PROJECT"],
           hint: "Please configure these in your .env file"
@@ -545,7 +546,7 @@ async function createADOWorkItems(args) {
       }]
     };
   }
-  
+
   // Read work items JSON
   let workItemsData;
   try {
@@ -555,29 +556,29 @@ async function createADOWorkItems(args) {
     return {
       content: [{
         type: "text",
-        text: JSON.stringify({ 
+        text: JSON.stringify({
           error: "Failed to read work items file",
-          details: error.message 
+          details: error.message
         })
       }]
     };
   }
-  
+
   // Check for both 'features' and 'epics' (support both formats)
   const topLevelItems = workItemsData.features || workItemsData.epics || [];
   const itemType = workItemsData.features ? 'feature' : 'epic';
-  
+
   if (!topLevelItems || topLevelItems.length === 0) {
     return {
       content: [{
         type: "text",
-        text: JSON.stringify({ 
+        text: JSON.stringify({
           error: "No features or epics found in work items file"
         })
       }]
     };
   }
-  
+
   if (dry_run) {
     // Just return what would be created
     const summary = {
@@ -587,13 +588,13 @@ async function createADOWorkItems(args) {
       items_to_create: {
         [itemType + 's']: topLevelItems.length,
         user_stories: topLevelItems.reduce((sum, f) => sum + (f.user_stories?.length || 0), 0),
-        tasks: topLevelItems.reduce((sum, f) => 
+        tasks: topLevelItems.reduce((sum, f) =>
           sum + f.user_stories?.reduce((s, us) => s + (us.tasks?.length || 0), 0) || 0, 0
         )
       },
       hierarchy: create_hierarchy
     };
-    
+
     return {
       content: [{
         type: "text",
@@ -601,7 +602,7 @@ async function createADOWorkItems(args) {
       }]
     };
   }
-  
+
   // Get ADO connection with authentication
   let connection;
   try {
@@ -610,7 +611,7 @@ async function createADOWorkItems(args) {
     return {
       content: [{
         type: "text",
-        text: JSON.stringify({ 
+        text: JSON.stringify({
           error: "Authentication failed",
           details: error.message,
           hint: "A browser window should open for authentication. Please sign in with your Azure DevOps account."
@@ -618,12 +619,12 @@ async function createADOWorkItems(args) {
       }]
     };
   }
-  
+
   const witApi = await connection.getWorkItemTrackingApi();
   const created = [];
   const errors = [];
   const idMap = {}; // Map original IDs to ADO work item IDs
-  
+
   try {
     // Create top-level items (features/epics)
     for (const topItem of topLevelItems) {
@@ -635,33 +636,33 @@ async function createADOWorkItems(args) {
           ADO_CONFIG.project,
           mapWorkItemType(itemType)
         );
-        
+
         created.push({
           type: itemType,
           id: topItem.id,
           ado_id: workItem.id,
           title: topItem.title
         });
-        
+
         idMap[topItem.id] = workItem.id;
-        
+
         // Create user stories
         if (create_hierarchy && topItem.user_stories) {
           for (const story of topItem.user_stories) {
             try {
               const storyPatch = createWorkItemPatch(
-                story, 
+                story,
                 'user_story',
                 workItem.url
               );
-              
+
               const storyWorkItem = await witApi.createWorkItem(
                 null,
                 storyPatch,
                 ADO_CONFIG.project,
                 'User Story'
               );
-              
+
               created.push({
                 type: 'user_story',
                 id: story.id,
@@ -669,9 +670,9 @@ async function createADOWorkItems(args) {
                 title: story.title,
                 parent: topItem.id
               });
-              
+
               idMap[story.id] = storyWorkItem.id;
-              
+
               // Create tasks
               if (story.tasks) {
                 for (const task of story.tasks) {
@@ -682,14 +683,14 @@ async function createADOWorkItems(args) {
                       'task',
                       storyWorkItem.url
                     );
-                    
+
                     const taskWorkItem = await witApi.createWorkItem(
                       null,
                       taskPatch,
                       ADO_CONFIG.project,
                       'Task'
                     );
-                    
+
                     created.push({
                       type: 'task',
                       id: task.id,
@@ -697,7 +698,7 @@ async function createADOWorkItems(args) {
                       title: task.title,
                       parent: story.id
                     });
-                    
+
                     idMap[task.id] = taskWorkItem.id;
                   } catch (error) {
                     errors.push({
@@ -722,7 +723,7 @@ async function createADOWorkItems(args) {
         });
       }
     }
-    
+
     // Create dependency links for tasks
     for (const topItem of topLevelItems) {
       if (topItem.user_stories) {
@@ -731,7 +732,7 @@ async function createADOWorkItems(args) {
             for (const task of story.tasks) {
               if (task.dependencies && task.dependencies.length > 0) {
                 const taskAdoId = idMap[task.id];
-                
+
                 for (const depId of task.dependencies) {
                   const depAdoId = idMap[depId];
                   if (depAdoId && taskAdoId) {
@@ -744,7 +745,7 @@ async function createADOWorkItems(args) {
                           url: `https://dev.azure.com/${ADO_CONFIG.organization}/_apis/wit/workItems/${depAdoId}`
                         }
                       }];
-                      
+
                       await witApi.updateWorkItem(null, patch, taskAdoId, ADO_CONFIG.project);
                     } catch (error) {
                       errors.push({
@@ -760,7 +761,7 @@ async function createADOWorkItems(args) {
         }
       }
     }
-    
+
     return {
       content: [{
         type: "text",
@@ -779,7 +780,7 @@ async function createADOWorkItems(args) {
     return {
       content: [{
         type: "text",
-        text: JSON.stringify({ 
+        text: JSON.stringify({
           error: "Failed to create work items",
           details: error.message,
           created_so_far: created,
