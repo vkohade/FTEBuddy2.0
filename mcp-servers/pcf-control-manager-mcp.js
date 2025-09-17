@@ -40,9 +40,14 @@ async function generateComponent(args) {
         "destroy - Properly unmount React components and clean up resources",
       ],
       check_Errors:
-        "Ensure the generated code compiles without TypeScript errors",
+        "Ensure the generated code compiles without TypeScript errors and reiterate until the errors are fixed",
       re_edit:
         "Manually fix and resolve any issues in generated component files as needed",
+      create_files: [
+        `src/${name}Root.tsx - Root component with FluentProvider`,
+        `src/components/${name}.tsx - Main component implementation`,
+        `src/styles/${name}Styles.ts - Component-specific styles`,
+      ],
     },
   };
 
@@ -77,12 +82,6 @@ async function generateComponent(args) {
           design_tokens: design_tokens || {},
           pcf_context: pcf_context || {}
         },
-        files_to_create: [
-          `src/Root.tsx - Root component with FluentProvider`,
-          `src/components/${name}.tsx - Main component implementation`,
-          `src/components/index.ts - Barrel exports`,
-          `src/styles/${name}Styles.ts - Component-specific styles`
-        ],
         architecture_notes: [
           "Root element should wrap the entire control with FluentProvider",
           "updateView method should render the Root element",
