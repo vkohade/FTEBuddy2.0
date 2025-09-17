@@ -379,7 +379,7 @@ async function authenticateADO() {
 async function getADOConnection() {
   if (!adoConnection) {
     const token = await authenticateADO();
-    const authHandler = azdev.getPersonalAccessTokenHandler(token);
+    const authHandler = azdev.getBearerHandler(token);
     adoConnection = new azdev.WebApi(
       `https://dev.azure.com/${ADO_CONFIG.organization}`,
       authHandler
