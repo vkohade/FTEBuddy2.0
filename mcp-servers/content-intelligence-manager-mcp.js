@@ -32,7 +32,7 @@ const ADO_CONFIG = {
 // MSAL configuration for interactive authentication
 const msalConfig = {
   auth: {
-    clientId: '872cd9fa-d31f-45e0-9eab-6e460a02d1f1', // Visual Studio Code client ID
+    clientId: process.env.MSAL_CLIENT_ID, // Visual Studio Code client ID (now from env)
     authority: 'https://login.microsoftonline.com/common',
   },
   system: {
