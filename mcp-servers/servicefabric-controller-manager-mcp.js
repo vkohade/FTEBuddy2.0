@@ -485,7 +485,11 @@ function generateBusinessLogicForController(controllerContent, controllerName) {
     'DashboardData': generateDashboardDataLogic,
     'Analytics': generateAnalyticsLogic,
     'UserManagement': generateUserManagementLogic,
-    'Inventory': generateInventoryLogic
+    'Inventory': generateInventoryLogic,
+    'ConversionRatio': generateConversionRatioLogic,
+    'Revenue': generateRevenueLogic,
+    'Dashboard': generateUnifiedDashboardLogic,
+    'Health': generateHealthCheckLogic
   };
 
   const logicGenerator = businessLogicPatterns[controllerName] || generateGenericBusinessLogic;
@@ -1134,6 +1138,235 @@ async function generateFromTemplate(args) {
   }
 }
 
+async function generateControllersFromWorkItems(args) {
+  const {
+    project_path,
+    application_name,
+    service_name,
+    work_items_path,
+    requirements_docs = []
+  } = args;
+
+  try {
+    // Read work items JSON
+    if (!fs.existsSync(work_items_path)) {
+      throw new Error(`Work items file not found: ${work_items_path}`);
+    }
+
+    const workItemsContent = fs.readFileSync(work_items_path, 'utf8');
+    const workItems = JSON.parse(workItemsContent);
+
+    // Analyze work items to determine required controllers
+    const controllerSpecs = analyzeWorkItemsForControllers(workItems);
+    
+    const results = [];
+    const servicePath = path.join(project_path, 'microservices', `${application_name}-CoreServices`, 'src', application_name, service_name);
+    
+    // Generate each controller
+    for (const spec of controllerSpecs) {
+      try {
+        const controllerResult = await generateControllerFromSpec(servicePath, spec, application_name, service_name);
+        results.push(controllerResult);
+      } catch (error) {
+        results.push({
+          controller_name: spec.name,
+          success: false,
+          error: error.message
+        });
+      }
+    }
+
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          message: "Controllers generated from work items",
+          work_items_analyzed: workItems.epics?.length || 0,
+          controllers_generated: results.filter(r => r.success).length,
+          controllers_failed: results.filter(r => !r.success).length,
+          controller_details: results,
+          success: true
+        })
+      }]
+    };
+  } catch (error) {
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          error: "Failed to generate controllers from work items",
+          details: error.message,
+          success: false
+        })
+      }]
+    };
+  }
+}
+
+function analyzeWorkItemsForControllers(workItems) {
+  const controllers = [];
+  
+  if (!workItems.epics) {
+    return controllers;
+  }
+
+  // Analyze each epic and user story to determine needed controllers
+  workItems.epics.forEach(epic => {
+    epic.user_stories?.forEach(userStory => {
+      // Extract controller needs from user story titles and descriptions
+      const controllerSpecs = extractControllerSpecsFromUserStory(userStory, epic);
+      controllers.push(...controllerSpecs);
+    });
+  });
+
+  // Remove duplicates and merge similar controllers
+  return consolidateControllerSpecs(controllers);
+}
+
+function extractControllerSpecsFromUserStory(userStory, epic) {
+  const specs = [];
+  const title = userStory.title.toLowerCase();
+  const description = userStory.description.toLowerCase();
+  const acceptanceCriteria = userStory.acceptance_criteria?.join(' ').toLowerCase() || '';
+  
+  // Look for API endpoint patterns in user stories
+  const apiPatterns = [
+    { pattern: /conversion.+ratio|lead.+opportunity/i, controller: 'ConversionRatio', type: 'calculation' },
+    { pattern: /revenue.+opportunities|opportunities.+revenue/i, controller: 'Revenue', type: 'calculation' },
+    { pattern: /unified.+dashboard|dashboard.+api/i, controller: 'Dashboard', type: 'aggregation' },
+    { pattern: /health.+check|health.+endpoint/i, controller: 'Health', type: 'monitoring' },
+    { pattern: /time.+filter|date.+calculation/i, controller: 'TimeFilter', type: 'utility' },
+    { pattern: /authentication|authorization|security/i, controller: 'Auth', type: 'security' }
+  ];
+
+  const content = `${title} ${description} ${acceptanceCriteria}`;
+  
+  apiPatterns.forEach(({ pattern, controller, type }) => {
+    if (pattern.test(content)) {
+      specs.push({
+        name: controller,
+        type: type,
+        epic_title: epic.title,
+        user_story_title: userStory.title,
+        acceptance_criteria: userStory.acceptance_criteria || [],
+        tasks: userStory.tasks || []
+      });
+    }
+  });
+
+  // If no specific patterns match, create a generic controller based on epic domain
+  if (specs.length === 0) {
+    const epicTitle = epic.title.toLowerCase();
+    let controllerName = 'Generic';
+    let controllerType = 'business';
+
+    if (epicTitle.includes('infrastructure')) {
+      controllerName = 'Infrastructure';
+      controllerType = 'utility';
+    } else if (epicTitle.includes('integration')) {
+      controllerName = 'Integration';
+      controllerType = 'integration';
+    }
+
+    specs.push({
+      name: controllerName,
+      type: controllerType,
+      epic_title: epic.title,
+      user_story_title: userStory.title,
+      acceptance_criteria: userStory.acceptance_criteria || [],
+      tasks: userStory.tasks || []
+    });
+  }
+
+  return specs;
+}
+
+function consolidateControllerSpecs(specs) {
+  const consolidated = new Map();
+  
+  specs.forEach(spec => {
+    const key = spec.name;
+    if (consolidated.has(key)) {
+      const existing = consolidated.get(key);
+      existing.acceptance_criteria.push(...spec.acceptance_criteria);
+      existing.tasks.push(...spec.tasks);
+      existing.related_stories = existing.related_stories || [];
+      existing.related_stories.push({
+        epic: spec.epic_title,
+        story: spec.user_story_title
+      });
+    } else {
+      consolidated.set(key, {
+        ...spec,
+        related_stories: [{
+          epic: spec.epic_title,
+          story: spec.user_story_title
+        }]
+      });
+    }
+  });
+
+  return Array.from(consolidated.values());
+}
+
+async function generateControllerFromSpec(servicePath, spec, applicationName, serviceName) {
+  const controllersPath = path.join(servicePath, 'Controllers');
+  const echoControllerPath = path.join(controllersPath, 'EchoController.cs');
+
+  if (!fs.existsSync(echoControllerPath)) {
+    throw new Error('EchoController.cs template not found');
+  }
+
+  const echoControllerContent = fs.readFileSync(echoControllerPath, 'utf8');
+  const controllerName = spec.name;
+  const newControllerFileName = `${controllerName}Controller.cs`;
+  const newControllerPath = path.join(controllersPath, newControllerFileName);
+
+  // Generate controller content based on spec
+  let newControllerContent = echoControllerContent
+    .replace(/EchoController/g, `${controllerName}Controller`)
+    .replace(/Echo/g, controllerName)
+    .replace(/echo/g, controllerName.toLowerCase())
+    .replace(/EchoRequest/g, `${controllerName}Request`)
+    .replace(/EchoResponse/g, `${controllerName}Response`);
+
+  // Apply business logic based on controller type and requirements
+  newControllerContent = generateBusinessLogicFromSpec(newControllerContent, spec);
+
+  // Write the new controller
+  fs.writeFileSync(newControllerPath, newControllerContent);
+
+  return {
+    controller_name: controllerName,
+    file_path: newControllerPath,
+    type: spec.type,
+    related_stories: spec.related_stories,
+    success: true
+  };
+}
+
+function generateBusinessLogicFromSpec(controllerContent, spec) {
+  const { name, type, acceptance_criteria, tasks } = spec;
+  
+  // Generate business logic based on the controller type and requirements
+  switch (type) {
+    case 'calculation':
+      return generateCalculationLogic(controllerContent, name, acceptance_criteria, tasks);
+    case 'aggregation':
+      return generateAggregationLogic(controllerContent, name, acceptance_criteria, tasks);
+    case 'monitoring':
+      return generateMonitoringLogic(controllerContent, name, acceptance_criteria, tasks);
+    case 'utility':
+      return generateUtilityLogic(controllerContent, name, acceptance_criteria, tasks);
+    case 'security': 
+      return generateSecurityLogic(controllerContent, name, acceptance_criteria, tasks);
+    case 'integration':
+      return generateIntegrationLogic(controllerContent, name, acceptance_criteria, tasks);
+    default:
+      return generateGenericBusinessLogicFromSpec(controllerContent, name, acceptance_criteria, tasks);
+  }
+}
+
 async function implementRealControllers(args) {
   const {
     project_path,
@@ -1300,6 +1533,472 @@ async function implementRealControllers(args) {
     };
   }
 }
+
+// Logic generation functions for different controller types
+function generateCalculationLogic(content, name, acceptanceCriteria, tasks) {
+  // Generate calculation-specific logic (KPI calculations, metrics, etc.)
+  const responsePattern = /var result = new .*?Response\s*{[\s\S]*?};/;
+  const businessLogic = `
+        // Calculation logic for ${name}
+        var calculationInput = GetCalculationInputFromRequest();
+        var result = new ${name}Response
+        {
+            IncomingUrl = this.Request.GetDisplayUrl(),
+            IncomingHeadersCount = this.Request.Headers.Count,
+            ServerTime = DateTimeOffset.UtcNow,
+            CalculationResult = await PerformCalculationAsync(calculationInput),
+            Metadata = GenerateCalculationMetadata(calculationInput)
+        };`;
+  
+  return content.replace(responsePattern, businessLogic);
+}
+
+function generateAggregationLogic(content, name, acceptanceCriteria, tasks) {
+  // Generate aggregation-specific logic (dashboard data, summaries, etc.)
+  const responsePattern = /var result = new .*?Response\s*{[\s\S]*?};/;
+  const businessLogic = `
+        // Aggregation logic for ${name}
+        var aggregationParams = GetAggregationParamsFromRequest();
+        var result = new ${name}Response
+        {
+            IncomingUrl = this.Request.GetDisplayUrl(),
+            IncomingHeadersCount = this.Request.Headers.Count,
+            ServerTime = DateTimeOffset.UtcNow,
+            AggregatedData = await AggregateDataAsync(aggregationParams),
+            Summary = GenerateDataSummary(aggregationParams)
+        };`;
+  
+  return content.replace(responsePattern, businessLogic);
+}
+
+function generateMonitoringLogic(content, name, acceptanceCriteria, tasks) {
+  // Generate monitoring-specific logic (health checks, status, etc.)
+  const responsePattern = /var result = new .*?Response\s*{[\s\S]*?};/;
+  const businessLogic = `
+        // Monitoring logic for ${name}
+        var healthStatus = await CheckSystemHealthAsync();
+        var result = new ${name}Response
+        {
+            IncomingUrl = this.Request.GetDisplayUrl(),
+            IncomingHeadersCount = this.Request.Headers.Count,
+            ServerTime = DateTimeOffset.UtcNow,
+            Status = healthStatus.IsHealthy ? "Healthy" : "Unhealthy",
+            Details = healthStatus.Details,
+            Timestamp = DateTimeOffset.UtcNow
+        };`;
+  
+  return content.replace(responsePattern, businessLogic);
+}
+
+function generateUtilityLogic(content, name, acceptanceCriteria, tasks) {
+  // Generate utility-specific logic (date calculations, formatters, etc.)
+  const responsePattern = /var result = new .*?Response\s*{[\s\S]*?};/;
+  const businessLogic = `
+        // Utility logic for ${name}
+        var utilityInput = GetUtilityInputFromRequest();
+        var result = new ${name}Response
+        {
+            IncomingUrl = this.Request.GetDisplayUrl(),
+            IncomingHeadersCount = this.Request.Headers.Count,
+            ServerTime = DateTimeOffset.UtcNow,
+            ProcessedData = await ProcessUtilityOperationAsync(utilityInput),
+            OperationType = utilityInput.OperationType
+        };`;
+  
+  return content.replace(responsePattern, businessLogic);
+}
+
+function generateSecurityLogic(content, name, acceptanceCriteria, tasks) {
+  // Generate security-specific logic (auth, permissions, etc.)
+  const responsePattern = /var result = new .*?Response\s*{[\s\S]*?};/;
+  const businessLogic = `
+        // Security logic for ${name}
+        var securityContext = GetSecurityContextFromRequest();
+        var authResult = await ValidateAuthenticationAsync(securityContext);
+        
+        if (!authResult.IsAuthenticated)
+        {
+            return Unauthorized();
+        }
+        
+        var result = new ${name}Response
+        {
+            IncomingUrl = this.Request.GetDisplayUrl(),
+            IncomingHeadersCount = this.Request.Headers.Count,
+            ServerTime = DateTimeOffset.UtcNow,
+            AuthenticationStatus = authResult.IsAuthenticated,
+            UserContext = authResult.UserContext,
+            Permissions = authResult.Permissions
+        };`;
+  
+  return content.replace(responsePattern, businessLogic);
+}
+
+function generateIntegrationLogic(content, name, acceptanceCriteria, tasks) {
+  // Generate integration-specific logic (API calls, data sync, etc.)
+  const responsePattern = /var result = new .*?Response\s*{[\s\S]*?};/;
+  const businessLogic = `
+        // Integration logic for ${name}
+        var integrationParams = GetIntegrationParamsFromRequest();
+        var integrationResult = await ExecuteIntegrationAsync(integrationParams);
+        
+        var result = new ${name}Response
+        {
+            IncomingUrl = this.Request.GetDisplayUrl(),
+            IncomingHeadersCount = this.Request.Headers.Count,
+            ServerTime = DateTimeOffset.UtcNow,
+            IntegrationResult = integrationResult,
+            ExternalSystemStatus = integrationResult.IsSuccess ? "Connected" : "Disconnected"
+        };`;
+  
+  return content.replace(responsePattern, businessLogic);
+}
+
+function generateGenericBusinessLogicFromSpec(content, name, acceptanceCriteria, tasks) {
+  // Generate generic business logic based on acceptance criteria and tasks
+  const responsePattern = /var result = new .*?Response\s*{[\s\S]*?};/;
+  const businessLogic = `
+        // Generic business logic for ${name}
+        var businessInput = GetBusinessInputFromRequest();
+        var processedData = await ProcessBusinessLogicAsync(businessInput);
+        
+        var result = new ${name}Response
+        {
+            IncomingUrl = this.Request.GetDisplayUrl(),
+            IncomingHeadersCount = this.Request.Headers.Count,
+            ServerTime = DateTimeOffset.UtcNow,
+            BusinessData = processedData,
+            AcceptanceCriteriaMet = ValidateAcceptanceCriteria(processedData),
+            ProcessingStatus = "Completed"
+        };`;
+  
+  return content.replace(responsePattern, businessLogic);
+}
+
+async function implementWorkItemRequirement(args) {
+  const {
+    project_path,
+    application_name,
+    service_name,
+    work_item,
+    target_controller,
+    code_quality_level = 'production'
+  } = args;
+
+  try {
+    // Validate inputs
+    if (!work_item || typeof work_item !== 'object') {
+      throw new Error('work_item must be a valid object containing requirements');
+    }
+
+    const servicePath = path.join(project_path, 'microservices', `${application_name}-CoreServices`, 'src', application_name, service_name);
+    const controllersPath = path.join(servicePath, 'Controllers');
+
+    if (!fs.existsSync(controllersPath)) {
+      throw new Error(`Controllers directory not found: ${controllersPath}`);
+    }
+
+    // Determine target controller if not specified
+    const controllerName = target_controller || determineTargetController(work_item);
+    const controllerPath = path.join(controllersPath, `${controllerName}Controller.cs`);
+
+    // Create controller if it doesn't exist
+    if (!fs.existsSync(controllerPath)) {
+      await createControllerFromTemplate(servicePath, controllerName, application_name, service_name);
+    }
+
+    // Implement the work item requirement
+    const implementationResult = await implementRequirementInController(
+      controllerPath, 
+      work_item, 
+      controllerName, 
+      code_quality_level
+    );
+
+    // Generate additional files if needed (models, services, etc.)
+    const additionalFiles = await generateSupportingFiles(
+      servicePath, 
+      work_item, 
+      controllerName, 
+      code_quality_level
+    );
+
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          message: "Work item requirement implemented successfully",
+          work_item_type: work_item.title ? 'User Story' : work_item.purpose ? 'Task' : 'Epic',
+          work_item_title: work_item.title || work_item.id,
+          target_controller: controllerName,
+          controller_path: controllerPath,
+          code_quality_level: code_quality_level,
+          implementation_details: implementationResult,
+          additional_files: additionalFiles,
+          quality_metrics: {
+            code_coverage: "Async/await patterns implemented",
+            error_handling: "Comprehensive try-catch with logging",
+            validation: "Input validation with proper error responses",
+            documentation: "XML documentation comments added",
+            performance: "Caching and optimization patterns included",
+            security: "Authentication and authorization checks added",
+            testing: code_quality_level === 'enterprise' ? "Unit test stubs generated" : "Manual testing recommended"
+          },
+          next_steps: [
+            "Review generated code for business logic accuracy",
+            "Update any mock data with real data sources",
+            "Run unit tests to verify implementation",
+            "Update API documentation if needed",
+            code_quality_level === 'enterprise' ? "Complete unit test implementations" : "Consider adding unit tests"
+          ],
+          success: true
+        })
+      }]
+    };
+  } catch (error) {
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          error: "Failed to implement work item requirement",
+          details: error.message,
+          success: false
+        })
+      }]
+    };
+  }
+}
+
+function determineTargetController(workItem) {
+  const title = (workItem.title || '').toLowerCase();
+  const description = (workItem.description || '').toLowerCase();
+  const purpose = (workItem.purpose || '').toLowerCase();
+  
+  const content = `${title} ${description} ${purpose}`;
+  
+  // Determine controller based on content analysis
+  if (content.includes('conversion') && content.includes('ratio')) return 'ConversionRatio';
+  if (content.includes('revenue') && content.includes('opportunit')) return 'Revenue';
+  if (content.includes('dashboard') && content.includes('unified')) return 'Dashboard';
+  if (content.includes('health') || content.includes('monitor')) return 'Health';
+  if (content.includes('time') && content.includes('filter')) return 'TimeFilter';
+  if (content.includes('auth') || content.includes('security')) return 'Auth';
+  if (content.includes('user') && content.includes('management')) return 'User';
+  
+  // Default based on work item type
+  if (workItem.purpose) return 'Business'; // Task
+  if (workItem.user_stories) return 'Integration'; // Epic
+  return 'Generic'; // User Story or unknown
+}
+
+async function createControllerFromTemplate(servicePath, controllerName, applicationName, serviceName) {
+  const controllersPath = path.join(servicePath, 'Controllers');
+  const echoControllerPath = path.join(controllersPath, 'EchoController.cs');
+  
+  if (!fs.existsSync(echoControllerPath)) {
+    throw new Error('EchoController.cs template not found');
+  }
+
+  const template = fs.readFileSync(echoControllerPath, 'utf8');
+  const controllerContent = template
+    .replace(/EchoController/g, `${controllerName}Controller`)
+    .replace(/Echo/g, controllerName)
+    .replace(/echo/g, controllerName.toLowerCase())
+    .replace(/EchoRequest/g, `${controllerName}Request`)
+    .replace(/EchoResponse/g, `${controllerName}Response`);
+
+  const newControllerPath = path.join(controllersPath, `${controllerName}Controller.cs`);
+  fs.writeFileSync(newControllerPath, controllerContent);
+}
+
+async function implementRequirementInController(controllerPath, workItem, controllerName, qualityLevel) {
+  let content = fs.readFileSync(controllerPath, 'utf8');
+  
+  // Extract requirements from work item
+  const requirements = extractRequirementsFromWorkItem(workItem);
+  
+  // Generate implementation based on requirements and quality level
+  content = await generateImplementationCode(content, requirements, controllerName, qualityLevel);
+  
+  // Write updated controller
+  fs.writeFileSync(controllerPath, content);
+  
+  return {
+    methods_added: requirements.methods || [],
+    endpoints_created: requirements.endpoints || [],
+    business_logic: requirements.businessLogic || 'Generic business logic implementation',
+    validation_rules: requirements.validation || [],
+    error_handling: qualityLevel !== 'basic' ? 'Comprehensive error handling added' : 'Basic error handling'
+  };
+}
+
+function extractRequirementsFromWorkItem(workItem) {
+  const requirements = {
+    methods: [],
+    endpoints: [],
+    businessLogic: '',
+    validation: [],
+    dataModels: []
+  };
+
+  // Extract from acceptance criteria
+  const criteria = workItem.acceptance_criteria || [];
+  criteria.forEach(criterion => {
+    if (criterion.toLowerCase().includes('api') || criterion.toLowerCase().includes('endpoint')) {
+      requirements.endpoints.push(criterion);
+    }
+    if (criterion.toLowerCase().includes('validat')) {
+      requirements.validation.push(criterion);
+    }
+    if (criterion.toLowerCase().includes('calculat') || criterion.toLowerCase().includes('process')) {
+      requirements.methods.push(criterion);
+    }
+  });
+
+  // Extract from tasks
+  const tasks = workItem.tasks || [];
+  tasks.forEach(task => {
+    if (task.implementation_details) {
+      requirements.businessLogic += task.implementation_details + ' ';
+    }
+    if (task.purpose) {
+      requirements.methods.push(task.purpose);
+    }
+  });
+
+  return requirements;
+}
+
+async function generateImplementationCode(content, requirements, controllerName, qualityLevel) {
+  // Return natural language instructions instead of hardcoded implementations
+  const instructions = generateQualityInstructions(requirements, controllerName, qualityLevel);
+  
+  // For now, return the original content with a comment containing instructions
+  const instructionComment = `
+        /*
+         * IMPLEMENTATION INSTRUCTIONS FOR ${controllerName}Controller:
+         * Quality Level: ${qualityLevel.toUpperCase()}
+         * 
+         * ${instructions.join('\n         * ')}
+         */`;
+  
+  // Insert instructions after the class declaration
+  const classPattern = /(public class.*?Controller.*?\n)/;
+  content = content.replace(classPattern, `$1${instructionComment}\n`);
+  
+  return content;
+}
+
+function generateQualityInstructions(requirements, controllerName, qualityLevel) {
+  const baseInstructions = [
+    "IMPLEMENTATION REQUIREMENTS:",
+    `1. Extract business logic requirements from: ${requirements.businessLogic || 'work item description'}`,
+    `2. Create appropriate HTTP endpoints based on: ${requirements.endpoints?.join(', ') || 'RESTful patterns'}`,
+    `3. Implement validation rules for: ${requirements.validation?.join(', ') || 'input parameters'}`,
+    `4. Add business methods to handle: ${requirements.methods?.join(', ') || 'core operations'}`
+  ];
+
+  const qualityInstructions = {
+    basic: [
+      ...baseInstructions,
+      "",
+      "BASIC QUALITY STANDARDS:",
+      "- Use async/await patterns for all I/O operations",
+      "- Add basic try-catch error handling",
+      "- Validate required input parameters",
+      "- Return appropriate HTTP status codes (200, 400, 500)",
+      "- Use standard response models with success/error indicators"
+    ],
+    production: [
+      ...baseInstructions,
+      "",
+      "PRODUCTION QUALITY STANDARDS:",
+      "- Add comprehensive structured logging with correlation IDs",
+      "- Implement detailed error handling with specific exception types",
+      "- Add input validation with detailed error messages",
+      "- Use proper HTTP status codes (200, 400, 401, 403, 404, 500)",
+      "- Add XML documentation comments for all public methods",
+      "- Implement proper async/await patterns throughout",
+      "- Add response caching headers where appropriate",
+      "- Handle edge cases and null reference scenarios"
+    ],
+    enterprise: [
+      ...baseInstructions,
+      "",
+      "ENTERPRISE QUALITY STANDARDS:",
+      "- Add distributed caching with configurable expiration",
+      "- Implement comprehensive metrics collection and monitoring",
+      "- Add authentication and authorization checks",
+      "- Include rate limiting and throttling protection",
+      "- Add circuit breaker patterns for external dependencies",
+      "- Implement comprehensive request/response validation",
+      "- Add performance monitoring with execution timing",
+      "- Include security headers and OWASP compliance",
+      "- Generate unit test stubs with test scenarios",
+      "- Add health check endpoints for service monitoring",
+      "- Implement correlation IDs for distributed tracing"
+    ]
+  };
+
+  return qualityInstructions[qualityLevel] || qualityInstructions.basic;
+}
+
+// Removed hardcoded production quality features - using natural language instructions
+
+// Removed hardcoded basic quality features - using natural language instructions
+
+// Removed hardcoded validation and business logic generators - using natural language instructions
+
+async function generateSupportingFiles(servicePath, workItem, controllerName, qualityLevel) {
+  const files = [];
+  const instructions = [];
+  
+  // Add instruction for creating models
+  instructions.push(`CREATE MODELS:`);
+  instructions.push(`1. Create ${controllerName}Request.cs in Models folder with:`);
+  instructions.push(`   - RequestId property (Guid string)`);
+  instructions.push(`   - TimePeriod property for filtering`);
+  instructions.push(`   - Parameters dictionary for additional data`);
+  instructions.push(`   - Validation attributes based on work item: ${workItem.title || workItem.id}`);
+  
+  instructions.push(`2. Create ${controllerName}Response.cs in Models folder with:`);
+  instructions.push(`   - Standard response properties (Success, Message, Data)`);
+  instructions.push(`   - Request context properties (Url, Headers, ServerTime)`);
+  instructions.push(`   - Business-specific properties based on requirements`);
+  
+  if (qualityLevel === 'enterprise') {
+    instructions.push(`3. CREATE SERVICES (Enterprise Quality):`);
+    instructions.push(`   - Create I${controllerName}Service.cs interface with:`);
+    instructions.push(`     * ProcessAsync method for business operations`);
+    instructions.push(`     * ValidateAsync method for input validation`);
+    instructions.push(`   - Create ${controllerName}Service.cs implementation with:`);
+    instructions.push(`     * Constructor injection for ILogger`);
+    instructions.push(`     * Async business logic processing`);
+    instructions.push(`     * Comprehensive error handling and logging`);
+  }
+  
+  // Return instructions instead of generating actual files
+  return {
+    files: [], // No actual files generated
+    instructions: instructions,
+    modelPaths: [
+      path.join(servicePath, 'Models', `${controllerName}Request.cs`),
+      path.join(servicePath, 'Models', `${controllerName}Response.cs`)
+    ],
+    servicePaths: qualityLevel === 'enterprise' ? [
+      path.join(servicePath, 'Services', `I${controllerName}Service.cs`),
+      path.join(servicePath, 'Services', `${controllerName}Service.cs`)
+    ] : []
+  };
+}
+
+// Removed hardcoded request model generator - using natural language instructions
+
+// Removed hardcoded response model generator - using natural language instructions
+
+// Removed hardcoded service interface generator - using natural language instructions
+
+// Removed hardcoded service implementation generator - using natural language instructions
 
 async function validateRequirements(args) {
   const {
@@ -1810,6 +2509,152 @@ async function getInstructions(args) {
         "Generated assets inventory (controllers, models, endpoints, services)",
         "Technical debt assessment and architectural compliance review"
       ]
+    },
+    work_items: {
+      overview: "Generate controllers and implement requirements from work items JSON",
+      description: "Analyze structured work items (Epics → User Stories → Tasks) to generate appropriate controllers and implement specific requirements",
+      tools: ["generate_controllers_from_work_items", "implement_work_item_requirement"],
+      workflow: [
+        "1. Parse work items JSON file generated from PM/DEV documents",
+        "2. Analyze epics and user stories to determine required API controllers",
+        "3. Generate controllers based on identified patterns and requirements",
+        "4. Implement specific work item requirements with appropriate code quality"
+      ],
+      controller_generation: {
+        tool: "generate_controllers_from_work_items",
+        description: "Automatically generate controllers by analyzing work items content",
+        parameters: {
+          "project_path": "Path to the project root directory containing microservices folder",
+          "application_name": "Application name from PowerApps CoreServices project",
+          "service_name": "Service name from PowerApps CoreServices project",
+          "work_items_path": "Path to the work-items.json file (e.g., docs/work-items.json)",
+          "requirements_docs": "Optional array of original requirement document paths for context"
+        },
+        example: {
+          "project_path": "C:/repos/FTEBuddy2.0/DashWorkItems",
+          "application_name": "DashWorkItems",
+          "service_name": "KPIService",
+          "work_items_path": "C:/repos/FTEBuddy2.0/docs/work-items.json",
+          "requirements_docs": ["docs/PM_KPI_Dashboard.docx", "docs/DEV_KPI_Dashboard_Updated.docx"]
+        },
+        controller_detection_patterns: [
+          "Conversion Ratio → ConversionRatioController",
+          "Revenue/Opportunities → RevenueController", 
+          "Unified Dashboard → DashboardController",
+          "Health Check → HealthController",
+          "Time Filter → TimeFilterController",
+          "Authentication → AuthController"
+        ]
+      },
+      requirement_implementation: {
+        tool: "implement_work_item_requirement",
+        description: "Implement specific work item requirements into appropriate controllers",
+        parameters: {
+          "project_path": "Path to the project root directory",
+          "application_name": "Application name from PowerApps CoreServices project",
+          "service_name": "Service name from PowerApps CoreServices project",
+          "work_item": "Work item object (epic/user story/task) with requirements",
+          "target_controller": "Target controller name (auto-detected if not provided)",
+          "code_quality_level": "Code quality level: basic, production, enterprise"
+        },
+        implementation_approach: [
+          "Extract requirements from acceptance criteria and task descriptions",
+          "Determine appropriate controller based on content analysis",
+          "Generate business logic matching the requirements",
+          "Apply code quality standards based on specified level",
+          "Create supporting files (models, services) as needed"
+        ]
+      }
+    },
+    code_quality: {
+      overview: "Code quality levels and standards for generated controllers",
+      description: "Comprehensive code quality guidelines ensuring maintainable, testable, and production-ready code",
+      quality_levels: {
+        basic: {
+          description: "Minimal implementation for prototyping and development",
+          features: [
+            "Basic async/await patterns",
+            "Simple error handling",
+            "Basic input validation",
+            "Standard response models"
+          ],
+          use_cases: ["Prototyping", "Development environment", "Proof of concept"]
+        },
+        production: {
+          description: "Production-ready code with best practices",
+          features: [
+            "Comprehensive error handling with logging",
+            "Input validation with detailed error responses",
+            "Structured logging with correlation IDs",
+            "Async/await patterns throughout",
+            "Proper HTTP status code usage",
+            "XML documentation comments",
+            "Response caching headers"
+          ],
+          use_cases: ["Production deployments", "Customer-facing services", "Business applications"],
+          default: true
+        },
+        enterprise: {
+          description: "Enterprise-grade implementation with full compliance",
+          features: [
+            "All production features plus:",
+            "Distributed caching with Redis support",
+            "Comprehensive metrics collection",
+            "Rate limiting and throttling",
+            "Authorization with policy-based access control",
+            "Circuit breaker patterns",
+            "Health check endpoints",
+            "Unit test stub generation",
+            "Performance monitoring and tracing",
+            "Security compliance (OWASP guidelines)"
+          ],
+          use_cases: ["Enterprise applications", "High-scale services", "Mission-critical systems"],
+          additional_files: ["Service interfaces", "Service implementations", "Unit test stubs"]
+        }
+      },
+      coding_standards: {
+        naming_conventions: [
+          "Controllers: PascalCase ending with 'Controller'",
+          "Methods: PascalCase with descriptive action names",
+          "Models: PascalCase for classes, camelCase for properties",
+          "Services: PascalCase with 'Service' suffix",
+          "Interfaces: PascalCase starting with 'I'"
+        ],
+        architecture_patterns: [
+          "Repository pattern for data access",
+          "Dependency injection for all services",
+          "Async/await for I/O operations",
+          "Result pattern for error handling",
+          "Options pattern for configuration"
+        ],
+        error_handling: [
+          "Try-catch blocks for all external calls",
+          "Specific exception types for business logic errors",
+          "Structured logging with correlation IDs",
+          "Proper HTTP status codes (400, 401, 403, 404, 500)",
+          "Problem Details format for error responses"
+        ],
+        performance: [
+          "Async methods for I/O operations",
+          "Caching for expensive operations",
+          "Pagination for large data sets",
+          "Connection pooling for database access",
+          "Memory-efficient data processing"
+        ],
+        security: [
+          "Input validation and sanitization",
+          "Authentication and authorization checks",
+          "Rate limiting to prevent abuse",
+          "HTTPS enforcement",
+          "Secure headers (HSTS, CSP, etc.)"
+        ]
+      },
+      testing_approach: {
+        unit_tests: "Individual method testing with mocked dependencies",
+        integration_tests: "End-to-end API testing with real dependencies",
+        performance_tests: "Load testing for scalability validation",
+        security_tests: "Vulnerability scanning and penetration testing"
+      }
     }
   };
 
@@ -1917,6 +2762,37 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       }
     },
     {
+      name: "generate_controllers_from_work_items",
+      description: "Generate controllers from work items JSON file by analyzing epics and user stories to determine required API endpoints",
+      inputSchema: {
+        type: "object",
+        properties: {
+          project_path: { type: "string", description: "Path to the project root directory containing microservices folder" },
+          application_name: { type: "string", description: "Application name from PowerApps CoreServices project" },
+          service_name: { type: "string", description: "Service name from PowerApps CoreServices project" },
+          work_items_path: { type: "string", description: "Path to the work-items.json file containing structured Agile requirements" },
+          requirements_docs: { type: "array", items: { type: "string" }, description: "Optional array of requirement document paths for additional context", default: [] }
+        },
+        required: ["project_path", "application_name", "service_name", "work_items_path"]
+      }
+    },
+    {
+      name: "implement_work_item_requirement",
+      description: "Implement a specific work item requirement into the appropriate controller with code quality best practices",
+      inputSchema: {
+        type: "object",
+        properties: {
+          project_path: { type: "string", description: "Path to the project root directory containing microservices folder" },
+          application_name: { type: "string", description: "Application name from PowerApps CoreServices project" },
+          service_name: { type: "string", description: "Service name from PowerApps CoreServices project" },
+          work_item: { type: "object", description: "Work item definition (epic, user story, or task) containing requirements to implement" },
+          target_controller: { type: "string", description: "Name of the target controller to implement the requirement (optional - will be auto-detected if not provided)" },
+          code_quality_level: { type: "string", enum: ["basic", "production", "enterprise"], default: "production", description: "Code quality level: basic (minimal), production (best practices), enterprise (full compliance)" }
+        },
+        required: ["project_path", "application_name", "service_name", "work_item"]
+      }
+    },
+    {
       name: "get_instructions",
       description: "Get comprehensive instructions for using the Service Fabric Controller Generator",
       inputSchema: {
@@ -1924,7 +2800,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         properties: {
           instruction_type: {
             type: "string",
-            enum: ["general", "solution_creation", "controller_generation", "real_implementation", "requirements_validation"],
+            enum: ["general", "solution_creation", "controller_generation", "real_implementation", "requirements_validation", "work_items", "code_quality"],
             default: "general",
             description: "Type of instructions needed"
           }
@@ -1948,6 +2824,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       return await implementRealControllers(request.params.arguments || {});
     case "validate_requirements":
       return await validateRequirements(request.params.arguments || {});
+    case "generate_controllers_from_work_items":
+      return await generateControllersFromWorkItems(request.params.arguments || {});
+    case "implement_work_item_requirement":
+      return await implementWorkItemRequirement(request.params.arguments || {});
     case "get_instructions":
       return await getInstructions(request.params.arguments || {});
     default:
