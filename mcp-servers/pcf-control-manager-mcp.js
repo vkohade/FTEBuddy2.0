@@ -25,7 +25,15 @@ async function generateComponent(args) {
       context_usage: "Use ComponentFramework.Context<IInputs> for theme and RTL detection",
       theme_detection: "context.fluentDesignLanguage?.isDarkTheme",
       rtl_detection: "context.userSettings.isRTL",
-      update_view: "Render root element in updateView method"
+      update_view: "Render root element in updateView method",
+      IInputsAndIOutputs: "Define IInputs and IOutputs Type. They should match with ControlManifest.",
+      lifecycle_methods: [
+        "init - Initialize state and context",
+        "updateView - Render Root element with current props/state and change return type of method to React.Element if necessary",
+        "getOutputs - Return any output properties",
+        "destroy - Clean up resources if needed"
+      ],
+      check_Errors: "Ensure no TypeScript errors in the generated code"
     }
   };
 
@@ -59,23 +67,6 @@ async function generateComponent(args) {
     ]
   };
 
-  const testingRequirements = {
-    unit_tests: [
-      "Test component rendering with different props",
-      "Test theme switching (light/dark)",
-      "Test RTL direction support",
-      "Test accessibility compliance with jest-axe",
-      "Test user interactions and event handling",
-      "Test error handling scenarios"
-    ],
-    test_setup: [
-      "Use @testing-library/react for component testing",
-      "Use jest-axe for accessibility testing", 
-      "Mock PCF context for testing",
-      "Achieve minimum 80% code coverage"
-    ]
-  };
-
   return {
     content: [{
       type: "text", 
@@ -83,7 +74,6 @@ async function generateComponent(args) {
         component_name: name,
         pcf_requirements: pcfRequirements,
         implementation_requirements: implementationRequirements,
-        testing_requirements: testingRequirements,
         component_specifications: {
           name,
           props: props || {},
@@ -95,7 +85,6 @@ async function generateComponent(args) {
         files_to_create: [
           `src/Root.tsx - Root component with FluentProvider`,
           `src/components/${name}.tsx - Main component implementation`,
-          `src/components/${name}.test.tsx - Comprehensive test suite`,
           `src/components/index.ts - Barrel exports`,
           `src/styles/${name}Styles.ts - Component-specific styles`
         ],
@@ -110,7 +99,6 @@ async function generateComponent(args) {
           "Accessibility score >= 85%",
           "Performance optimized with proper memoization", 
           "Full TypeScript strict mode compliance",
-          "Test coverage >= 80%",
           "Fluent UI design system compliance"
         ]
       })
@@ -132,19 +120,16 @@ async function generateStyles(args) {
     theme_support_requirements: theme_support ? [
       "Automatic theme switching using Fluent design tokens",
       "Support for webLightTheme and webDarkTheme",
-      "Use semantic color tokens that adapt automatically",
-      "Test in both light and dark modes"
+      "Use semantic color tokens that adapt automatically"
     ] : [],
     rtl_support_requirements: [
       "Use CSS logical properties (margin-inline-start vs margin-left)",
       "Implement RTL-specific styles where needed", 
-      "Test layout in both LTR and RTL directions",
       "Use Fluent UI's RTL-aware components"
     ],
     responsive_design_requirements: responsive ? [
       "Implement mobile-first responsive design",
       "Use CSS media queries within makeStyles",
-      "Test across different screen sizes and devices",
       "Ensure touch-friendly interactive elements"
     ] : [],
     performance_requirements: [
@@ -212,13 +197,6 @@ async function validateAccessibility(args) {
       "Focus management implementation",
       "Color contrast compliance",
       "Alternative text for non-text content"
-    ],
-    testing_requirements: [
-      "Automated testing with @axe-core/react",
-      "Manual testing with screen readers (NVDA, JAWS, VoiceOver)",
-      "Keyboard-only navigation testing",
-      "High contrast mode testing",
-      "Zoom testing (up to 200%)"
     ]
   };
 
@@ -249,7 +227,6 @@ async function validateAccessibility(args) {
         accessibility_score: accessibilityScore,
         wcag_compliance_checklist: accessibilityValidation.wcag_compliance_checklist,
         validation_criteria: accessibilityValidation.validation_criteria,
-        testing_requirements: accessibilityValidation.testing_requirements,
         analysis_results: {
           issues,
           warnings,
@@ -349,14 +326,7 @@ async function getInstructions(args) {
           "Focus restoration when dismissing overlays",
           "Skip links for complex components"
         ]
-      },
-      testing_strategy: [
-        "Automated testing with @axe-core/react and jest-axe",
-        "Manual testing with NVDA, JAWS, and VoiceOver",
-        "Keyboard-only navigation testing",
-        "High contrast mode verification",
-        "Zoom testing up to 200% magnification"
-      ]
+      }
     },
 
     performance: {
@@ -396,46 +366,6 @@ async function getInstructions(args) {
         "Use WeakMap/WeakSet for object associations",
         "Monitor memory usage in development"
       ]
-    },
-
-    testing: {
-      overview: "Implement comprehensive testing strategy for PCF controls",
-      pcf_testing_requirements: [
-        "Mock ComponentFramework.Context for unit tests",
-        "Test PCF lifecycle methods (init, updateView, getOutputs, destroy)",
-        "Test integration with Dynamics 365 data and metadata",
-        "Validate PCF manifest requirements and constraints",
-        "Test control behavior in different form contexts"
-      ],
-      unit_testing_strategy: [
-        "Test component rendering with various props and states",
-        "Test user interactions and event handling",
-        "Test accessibility features and ARIA attributes",
-        "Test error handling and boundary conditions",
-        "Test theme switching and RTL behavior",
-        "Achieve minimum 80% code coverage"
-      ],
-      integration_testing: [
-        "Test PCF control integration with mock Dataverse data",
-        "Test responsive behavior across different screen sizes",
-        "Test keyboard navigation flows",
-        "Test performance under load",
-        "Test compatibility with different browsers"
-      ],
-      testing_tools: [
-        "@testing-library/react for component testing",
-        "@testing-library/user-event for user interaction simulation",
-        "jest-axe for accessibility testing",
-        "MSW (Mock Service Worker) for API mocking",
-        "@storybook/test for visual testing"
-      ],
-      test_structure: [
-        "Organize tests by feature/behavior rather than implementation",
-        "Use descriptive test names that explain the expected behavior",
-        "Setup common test utilities and helpers",
-        "Mock external dependencies and PCF context",
-        "Include performance tests for critical operations"
-      ]
     }
   };
 
@@ -457,7 +387,6 @@ async function getInstructions(args) {
           integration_points: [
             "TemplateManager: Receives scaffolded PCF project structure",
             "StorybookManager: Provides components for interactive documentation",
-            "TestingManager: Generates comprehensive test suites",
             "PerformanceManager: Analyzes and optimizes component performance"
           ]
         }
@@ -533,7 +462,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         properties: {
           instruction_type: {
             type: "string",
-            enum: ["styling", "accessibility", "performance", "testing"],
+            enum: ["styling", "accessibility", "performance"],
             description: "Type of instructions needed"
           }
         },

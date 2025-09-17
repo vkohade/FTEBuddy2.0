@@ -120,86 +120,10 @@ async function getInstructions(args) {
 
   const instructions = {
     pcf_control: {
-      scaffolding: {
-        overview:
-          "Create PCF control project with React 18, TypeScript, and Fluent UI v9 integration",
-        prerequisites: [
-          "Install Power Platform CLI (pac)",
-          "Install Node.js 18+ and npm",
-          "Authenticate to Power Platform environment",
-        ],
-        project_structure: {
-          "src/": "Main source directory",
-          "src/components/": "React components with Fluent UI v9",
-          "src/ui/components/": "UI components library",
-          "src/ui/hooks/": "Custom React hooks",
-          "src/ui/styles.ts": "Shared styles using makeStyles",
-          "src/dataService/": "Data access layer",
-          "src/utils/": "Pure utility functions",
-          "src/constants/": "Application constants",
-          "src/telemetry/": "Telemetry and logging",
-        },
-        configuration_files: {
-          "tsconfig.json": "TypeScript strict mode configuration",
-          "package.json": "Dependencies including Fluent UI v9",
-          "ControlManifest.Input.xml": "PCF control manifest",
-          ".eslintrc.json": "ESLint with strict rules",
-        },
-        required_dependencies: [
-          "@fluentui/react-components",
-          "@fluentui/react-icons",
-          "react@18",
-          "react-dom@18",
-          "@types/react",
-          "@types/react-dom",
-        ],
-        best_practices: [
-          "Use Fluent UI design tokens exclusively",
-          "Implement theme support (light/dark)",
-          "Support RTL layouts",
-          "Follow accessibility guidelines (WCAG 2.1 AA)",
-          "Use TypeScript strict mode",
-          "Implement proper error boundaries",
-        ],
-      },
+      scaffolding: "Run the pac cli commands for pcf control to create the skeleton of the control. Use scaffold_pcf_control tool to create it.",
     },
     plugin: {
-      scaffolding: {
-        overview:
-          "Create Dynamics 365 plugin with proper architecture and security",
-        prerequisites: [
-          "Install .NET SDK 6.0+",
-          "Install Power Platform CLI",
-          "Plugin Registration Tool access",
-        ],
-        project_structure: {
-          "BusinessLogic/": "Core business logic classes",
-          "Models/": "Data models and DTOs",
-          "Services/": "Service layer implementations",
-          "Helpers/": "Utility and helper classes",
-          "Tests/": "Unit and integration tests",
-        },
-        required_packages: [
-          "Microsoft.CrmSdk.CoreAssemblies",
-          "Microsoft.CrmSdk.Workflow",
-          "Microsoft.PowerPlatform.Dataverse.Client",
-          "Microsoft.Extensions.DependencyInjection",
-        ],
-        architecture_patterns: [
-          "Dependency injection for testability",
-          "Repository pattern for data access",
-          "Service layer for business logic",
-          "Proper exception handling",
-          "Structured logging",
-        ],
-        security_considerations: [
-          "Input validation for all parameters",
-          "Secure coding practices",
-          "Proper authentication checks",
-          "SQL injection prevention",
-          "Cross-site scripting prevention",
-        ],
-      },
+      scaffolding: "Run the pac cli commands for plugin to create the skeleton of the plugin. Use scaffold_plugin tool to create it.",
     },
   };
 
@@ -240,7 +164,7 @@ async function getInstructions(args) {
 }
 
 const server = new Server(
-  { name: "template-manager-mcp", version: "0.1.0" },
+  { name: "template-manager-mcp", version: "0.2.0" },
   { capabilities: { tools: {} } }
 );
 
