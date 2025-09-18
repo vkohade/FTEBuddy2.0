@@ -24,6 +24,7 @@ async function generateComponent(args) {
       "Import from @fluentui/react-components (makeStyles, tokens, FluentProvider, webLightTheme, webDarkTheme).",
       "Import from @fluentui/react-icons as defined in component_spec.required_icons.",
       "Use React hooks (useState, useCallback, useId, useMemo, useEffect) as needed.",
+      "Always use double quotes (\") for import statements (e.g., import { KPIDashboardRoot } from \"./src/KPIDashboardRoot\";) and never convert them to single quotes",
     ],
     pcf_integration: {
       context_usage:

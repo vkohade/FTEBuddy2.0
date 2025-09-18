@@ -81,7 +81,7 @@ Always use `get_instructions` tool from each MCP server as the **first step** to
 - `get_instructions`: Get scaffolding instructions for project types
 
 ### **PCFControlManager MCP Server** (`pcf-control-manager-mcp`)
-**Purpose**: Generate and modify PCF control components with Fluent UI v9
+**Purpose**: Generate and modify PCF control components with Fluent UI v9 ensuring component creation and styling strictly follow the reference image (png) in the docs folder, if available (mandatory).
 **Connection**: `stdio://pcf-control-manager-mcp`
 
 **Available Tools**:
@@ -100,7 +100,7 @@ Always use `get_instructions` tool from each MCP server as the **first step** to
   - Fix all TypeScript errors  
   - Fix all ESLint issues  
   - Fix runtime issues found during execution  
-  - Ensure the control compiles and runs with `npm run build` and `npm start watch`  
+  - Ensure the control compiles and runs with `npm run build` and `npm start watch`  or else re-iterate until errors are resolved.
 - Do not consider the task complete until the generated PCF control is **compilation-ready, lint-clean, and runtime-stable**.  
 
 
