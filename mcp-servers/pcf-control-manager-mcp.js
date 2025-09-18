@@ -4,25 +4,26 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprot
 
 async function generateComponent(args) {
   const { component_spec, design_tokens } = args;
-  const { name, props, state, accessibility_features, pcf_context } = component_spec;
+  const { name, props, state, accessibility_features, pcf_context } =
+    component_spec;
 
-  // Define PCF Control architecture requirements
+  // Define PCF Control architecture requirements as MCP instructions
   const pcfRequirements = {
     architecture_pattern:
-      "PCF Control with Root Element and updateView integration",
+      "Implement a PCF Control with a dedicated Root element and updateView integration.",
     fluent_provider_location:
-      "Root element only - not in individual components",
-    rendering_method: "updateView method renders the Root element",
+      "FluentProvider must only be included at the Root element, never in child components.",
+    rendering_method:
+      "The updateView method must render the Root element using ReactDOM.createRoot.",
     component_structure: {
-      root_element: `${name}Root - Main container with FluentProvider`,
-      main_component: `${name} - Core component logic without FluentProvider`,
-      supporting_components:
-        "Additional components as needed based on specifications",
+      root_element: `${name}Root - Main container wrapping content with FluentProvider.`,
+      main_component: `${name} - Core component logic (exclude FluentProvider).`,
+      supporting_components: "Add supporting components only if required.",
     },
     required_imports: [
-      "@fluentui/react-components (makeStyles, tokens, FluentProvider, webLightTheme, webDarkTheme)",
-      "@fluentui/react-icons (as specified in component_spec.required_icons)",
-      "React hooks (useState, useCallback, useId, useMemo, useEffect as needed)",
+      "Import from @fluentui/react-components (makeStyles, tokens, FluentProvider, webLightTheme, webDarkTheme).",
+      "Import from @fluentui/react-icons as defined in component_spec.required_icons.",
+      "Use React hooks (useState, useCallback, useId, useMemo, useEffect) as needed.",
     ],
     pcf_integration: {
       context_usage:
@@ -40,63 +41,80 @@ async function generateComponent(args) {
         "destroy - Properly unmount React components and clean up resources",
       ],
       check_Errors:
-        "Ensure the generated code compiles without TypeScript errors and reiterate until the errors are fixed",
+        "Ensure the generated code compiles without TypeScript errors and reiterate until all errors are fixed",
+      runtime_validation:
+        "Run and validate the control until no runtime errors are observed",
       re_edit:
-        "Manually fix and resolve any issues in generated component files as needed",
+        "Iteratively fix and re-edit all component/control files (including styles, root, main component, and manifest integration) until there are no TypeScript, ESLint, or runtime errors. The final code must be build-ready.",
       create_files: [
-        `src/${name}Root.tsx - Root component with FluentProvider`,
-        `src/components/${name}.tsx - Main component implementation`,
-        `src/styles/${name}Styles.ts - Component-specific styles`,
+        `src/${name}Root.tsx - Root component containing FluentProvider (must be created)`,
+        `src/components/${name}.tsx - Main component implementation (must be created)`,
+        `src/styles/${name}Styles.ts - Component-specific styles (must be created)`,
       ],
+      file_restrictions:
+        "Do not create a new index.tsx file for lifecycle methods. Always use the existing index.ts file for lifecycle logic.",
+      build_commands: [
+        "Run `npm run build` to validate compilation",
+        "Run `npm start watch` (or equivalent PCF CLI command) to test the control live",
+      ],
+      quality_gate:
+        "Do not stop until the code passes TypeScript compilation, ESLint checks, and builds successfully with no errors.",
     },
   };
 
   const implementationRequirements = {
     styling_requirements: [
-      "Use makeStyles with Fluent UI design tokens exclusively",
-      "Never use hard-coded colors, spacing, or typography values",
-      "Support both light and dark themes automatically",
-      "Implement RTL support using CSS logical properties",
-      "Use semantic color tokens (e.g., colorNeutralBackground1)"
+      "Use makeStyles with Fluent UI design tokens exclusively.",
+      "Do not hard-code colors, spacing, or typography values.",
+      "Support both light and dark themes automatically.",
+      "Implement RTL support using CSS logical properties.",
+      "Use semantic Fluent UI tokens (e.g., colorNeutralBackground1).",
     ],
     typescript_requirements: [
-      "Use TypeScript strict mode",
-      "Define proper interfaces for all props and state",
-      "Include proper error handling with try-catch blocks",
-      "Use proper typing for all variables and functions"
-    ]
+      "Enable strict mode in TypeScript.",
+      "Define proper interfaces for all props and state.",
+      "Use try-catch for error handling.",
+      "Apply strict typing for all variables and functions.",
+    ],
   };
 
   return {
-    content: [{
-      type: "text", 
-      text: JSON.stringify({
-        component_name: name,
-        pcf_requirements: pcfRequirements,
-        implementation_requirements: implementationRequirements,
-        component_specifications: {
-          name,
-          props: props || {},
-          state: state || {},
-          accessibility_features: accessibility_features || {},
-          design_tokens: design_tokens || {},
-          pcf_context: pcf_context || {}
-        },
-        architecture_notes: [
-          "Root element should wrap the entire control with FluentProvider",
-          "updateView method should render the Root element",
-          "Individual components should NOT include FluentProvider",
-          "Use PCF context for theme and RTL detection",
-          "Follow PCF control lifecycle methods"
-        ],
-        quality_gates: [
-          "Accessibility score >= 85%",
-          "Performance optimized with proper memoization", 
-          "Full TypeScript strict mode compliance",
-          "Fluent UI design system compliance"
-        ]
-      })
-    }]
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify({
+          component_name: name,
+          pcf_requirements: pcfRequirements,
+          implementation_requirements: implementationRequirements,
+          component_specifications: {
+            name,
+            props: props || {},
+            state: state || {},
+            accessibility_features: accessibility_features || {},
+            design_tokens: design_tokens || {},
+            pcf_context: pcf_context || {},
+          },
+          architecture_notes: [
+            "Root element must wrap the entire control with FluentProvider.",
+            "updateView must render the Root element.",
+            "Individual components must not include FluentProvider.",
+            "Use PCF context for theme and RTL detection.",
+            "Follow standard PCF lifecycle methods.",
+          ],
+          quality_gates: [
+            "Accessibility score must be >= 85%.",
+            "Performance must be optimized with proper memoization.",
+            "Strict TypeScript compliance.",
+            "Fluent UI v9 design system compliance.",
+            "All compilation and runtime errors must be resolved before completion.",
+          ],
+          build_validation: [
+            "Always run `npm run build` after code generation.",
+            "Always run `npm start watch` to validate runtime execution.",
+          ],
+        }),
+      },
+    ],
   };
 }
 

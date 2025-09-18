@@ -89,6 +89,21 @@ Always use `get_instructions` tool from each MCP server as the **first step** to
 - `generate_styles`: Generate styling requirements using Fluent UI design tokens
 - `get_instructions`: Get PCF development instructions
 
+**Additional Orchestration Rules (PCFControlManager specific):**  
+- Always enforce **FluentProvider only at the Root element**, never in child components.  
+- Always create:  
+  - `src/${name}Root.tsx` (Root with FluentProvider)  
+  - `src/components/${name}.tsx` (main component)  
+  - `src/styles/${name}Styles.ts` (styles)  
+- Never create a new `index.tsx` file for lifecycle methods — always use the existing `index.ts`.  
+- Retry and re-edit automatically until build-ready:  
+  - Fix all TypeScript errors  
+  - Fix all ESLint issues  
+  - Fix runtime issues found during execution  
+  - Ensure the control compiles and runs with `npm run build` and `npm start watch`  
+- Do not consider the task complete until the generated PCF control is **compilation-ready, lint-clean, and runtime-stable**.  
+
+
 ### **HighchartsManager MCP Server** (`highcharts-manager-mcp`)
 **Purpose**: Generate accessible, theme-aware Highcharts components for data visualization
 **Connection**: `stdio://highcharts-manager-mcp`
