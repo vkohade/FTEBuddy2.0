@@ -5,9 +5,9 @@ You are the **GitHub Copilot Agent Orchestrator** responsible for coordinating *
 
 A full integrated workflow includes:
 1. Parse Word documents to understand the requirements.
-2. Structure the requirements into Agile work items (Epics → User Stories → Tasks).
+2. Structure the requirements into Agile work items (Features → User Stories → Tasks).
 3. Scaffold project structures for PCF controls and plugins if required.
-4. Generate React components with Fluent UI v9 for PCF controls.
+4. Generate React components with Fluent UI v9 for PCF controls. If figma nodes are present in the dev docs, use Figma MCP server to get screenshots for the designs to help in UI development.
 5. Generate Dynamics 365 plugins with best practices.
 6. Create Storybook stories for interactive documentation.
 7. Ensure accessibility, performance, and testing best practices.
@@ -55,14 +55,15 @@ Always use `get_instructions` tool from each MCP server as the **first step** to
   - **Purpose**: Provides detailed parsing guidelines and best practices
 
 ### **ContentIntelligenceManager MCP Server** (`content-intelligence-manager-mcp`)
-**Purpose**: Provide authoritative JSON schema guidance for structuring Agile requirements (Epics → User Stories → Tasks) after document parsing. It does NOT perform semantic extraction—only returns the schema, constraints, and examples to ensure consistent downstream transformation.
+**Purpose**: Provide authoritative JSON schema guidance for structuring Agile requirements (Features → User Stories → Tasks) after document parsing, persist work items to JSON, and create Azure DevOps work items with interactive authentication.
 **Connection**: `stdio://content-intelligence-manager-mcp`
 
 **Available Tools**:
 - `get_instructions`: Get schema and structuring instructions
   - **Parameters**: `instruction_type` (enum: analysis; current supported: `analysis`)
   - **Purpose**: Returns schema specification, constraints, ID strategy, and minimal example for generating normalized Agile JSON from parsed document content.
-- `create_work_items_json`: Persist structured Agile JSON (Epics → User Stories → Tasks) to disk
+  
+- `create_work_items_json`: Persist structured Agile JSON (Features → User Stories → Tasks) to disk
   - **Parameters**:
     - `work_items` (object|string, required): Work items data following the schema returned by `get_instructions` (object preferred; JSON string accepted).
     - `document_directory` (string, optional): Target directory. If omitted and `source_document` provided, directory is derived from the source document path.
@@ -70,6 +71,21 @@ Always use `get_instructions` tool from each MCP server as the **first step** to
     - `file_name` (string, optional, default: `work-items.json`): Override output file name.
     - `overwrite` (boolean, optional, default: true): When false and file exists, operation should fail gracefully.
   - **Purpose**: Writes the normalized Agile hierarchy to `work-items.json` (or custom file) enabling downstream tooling. Validates presence of required root keys per schema before writing, ensures idempotent overwrite behavior, and preserves UTF-8 encoding without BOM.
+
+- `create_ado_work_items`: Create Azure DevOps work items from work-items.json with interactive browser-based authentication
+  - **Parameters**:
+    - `work_items_path` (string, required): Path to the work-items.json file containing structured work items
+    - `dry_run` (boolean, optional, default: false): Show what would be created without actually creating items
+    - `create_hierarchy` (boolean, optional, default: true): Create full hierarchy (Features → User Stories → Tasks) with parent-child relationships
+    - `skip_existing` (boolean, optional, default: true): Skip items that already exist based on tags
+  - **Purpose**: Creates work items in Azure DevOps with proper hierarchy, dependencies, and field mappings. Uses interactive browser authentication via MSAL with Visual Studio Code client ID. Automatically maps work item fields including title, description, acceptance criteria, effort estimates, assignees, and states. Creates dependency links between tasks when specified.
+  - **Configuration**: Requires environment variables in `.env`:
+    - `ADO_ORGANIZATION`: Azure DevOps organization name
+    - `ADO_PROJECT`: Azure DevOps project name
+    - `ADO_AREA_PATH`: Area path for work items (optional, defaults to project)
+    - `ADO_ITERATION_PATH`: Iteration path for work items (optional, defaults to project)
+    - `ADO_DEFAULT_ASSIGNEE`: Default assignee email (optional)
+    - `ADO_AUTH_CALLBACK_PORT`: Port for authentication callback (default: 3000)
 
 ### **TemplateManager MCP Server** (`template-manager-mcp`)
 **Purpose**: Scaffold basic project structure and generate initial files
@@ -133,12 +149,52 @@ Always use `get_instructions` tool from each MCP server as the **first step** to
 - `get_instructions`: Get plugin development instructions
 
 ### **StorybookManager MCP Server** (`storybook-manager-mcp`)
-**Purpose**: Generate Storybook stories and testing scenarios
+**Purpose**: Generate comprehensive Storybook stories, testing configurations, and CI/CD scripts
 **Connection**: `stdio://storybook-manager-mcp`
 
 **Available Tools**:
-- `generate_story`: Generate comprehensive Storybook story with CSF3 format
-- `get_instructions`: Get Storybook development instructions
+- `generate_story`: Generate comprehensive Storybook story with CSF3 format, testing, and accessibility
+  - **Parameters**: 
+    - `component_name` (string, required): Name of the component
+    - `component_type` (enum: standard, chart, data-grid, form): Type of component for specialized story generation
+    - `story_variants` (array): Story variants to generate (Default, Dark, RTL, Empty, Loading, Error, etc.)
+    - `has_interactions` (boolean): Include play functions for testing
+    - `has_accessibility` (boolean): Include accessibility testing
+    - `props_interface` (object): Component props interface
+    - `mock_data` (object): Mock data for the component
+    - `fluent_theme` (boolean): Use Fluent UI theming
+  - **Purpose**: Create production-ready Storybook stories with interaction testing and accessibility checks
+
+- `generate_test_runner`: Generate test-runner configuration with accessibility testing
+  - **Parameters**:
+    - `accessibility_rules` (object): Axe rules configuration
+    - `detailed_report` (boolean): Generate detailed HTML reports
+    - `custom_checks` (array): Custom test checks
+  - **Purpose**: Configure Storybook test-runner with axe-playwright integration for comprehensive testing
+
+- `generate_playwright_config`: Generate Playwright configuration for Storybook test-runner
+  - **Parameters**:
+    - `headless` (boolean): Run in headless mode
+    - `browser_args` (array): Browser launch arguments
+  - **Purpose**: Configure Playwright for optimized Storybook testing in CI/CD environments
+
+- `generate_storybook_config`: Generate main Storybook configuration
+  - **Parameters**:
+    - `addons` (array): Additional Storybook addons
+    - `framework` (string): Storybook framework
+  - **Purpose**: Create main Storybook configuration with TypeScript, Webpack 5, and Babel support
+
+- `generate_package_scripts`: Generate package.json scripts for Storybook development, testing, and CI/CD
+  - **Parameters**:
+    - `include_ci_scripts` (boolean): Include CI/CD optimized scripts
+    - `custom_port` (number): Custom port for Storybook server
+    - `max_workers` (number): Maximum number of test workers
+    - `additional_scripts` (object): Additional custom scripts to include
+  - **Purpose**: Generate npm scripts for local development and CI/CD pipelines with concurrent execution support
+
+- `get_instructions`: Get comprehensive Storybook development instructions
+  - **Parameters**: `instruction_type` (enum: setup, stories, accessibility, testing, charts, scripts)
+  - **Purpose**: Provide detailed guidance for Storybook setup, story creation, testing strategies, and CI/CD integration
 
 ### **PerformanceManager MCP Server** (`performance-manager-mcp`)
 **Purpose**: Analyze and optimize code performance
@@ -159,3 +215,10 @@ Always use `get_instructions` tool from each MCP server as the **first step** to
 - `generate_integration_tests`: Generate integration tests for workflows
 - `analyze_coverage`: Analyze test coverage and suggest improvements
 - `get_instructions`: Get testing strategy instructions
+
+Another MCP server that can be optionally integrated:
+### **Figma MCP Server**
+**Purpose**: Get screenshots for the designs to help in UI develpopment
+
+**Available Tools**:
+  - `get_screenshot`: Get screenshots for the designs to help in UI development. The node ids should be provided in the dev docs.
