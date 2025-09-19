@@ -4,105 +4,153 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprot
 
 async function generateComponent(args) {
   const { component_spec, design_tokens } = args;
-  const { name, props, state, accessibility_features, pcf_context } = component_spec;
+  const { name, props, state, accessibility_features, pcf_context } =
+    component_spec;
 
-  // Define PCF Control architecture requirements
+  // Define PCF Control architecture requirements as MCP instructions
   const pcfRequirements = {
-    architecture_pattern: "PCF Control with Root Element and updateView integration",
-    fluent_provider_location: "Root element only - not in individual components",
-    rendering_method: "updateView method renders the Root element",
+    architecture_pattern:
+      "Implement a PCF Control with a dedicated Root element and updateView integration.",
+    fluent_provider_location:
+      "FluentProvider must only be included at the Root element, never in child components.",
+    rendering_method:
+      "The updateView method must render the Root element using ReactDOM.createRoot.",
     component_structure: {
-      root_element: `${name}Root - Main container with FluentProvider`,
-      main_component: `${name} - Core component logic without FluentProvider`,
-      supporting_components: "Additional components as needed based on specifications"
+      root_element: `${name}Root - Main container wrapping content with FluentProvider.`,
+      main_component: `${name} - Core component logic (exclude FluentProvider).`,
+      supporting_components: "Add supporting components only if required.",
     },
     required_imports: [
-      "@fluentui/react-components (makeStyles, tokens, FluentProvider, webLightTheme, webDarkTheme)",
-      "@fluentui/react-icons (as specified in component_spec.required_icons)",
-      "React hooks (useState, useCallback, useId, useMemo, useEffect as needed)"
+      "Import from @fluentui/react-components (makeStyles, tokens, FluentProvider, webLightTheme, webDarkTheme).",
+      "Import from @fluentui/react-icons as defined in component_spec.required_icons.",
+      "Use React hooks (useState, useCallback, useId, useMemo, useEffect) as needed.",
+      'Always use double quotes ("") for import statements (e.g., import { KPIDashboardRoot } from "./src/KPIDashboardRoot";) and do not convert them to single quotes.',
     ],
     pcf_integration: {
-      context_usage: "Use ComponentFramework.Context<IInputs> for theme and RTL detection",
+      context_usage:
+        "Use ComponentFramework.Context<IInputs> for theme (light/dark) and RTL detection",
       theme_detection: "context.fluentDesignLanguage?.isDarkTheme",
       rtl_detection: "context.userSettings.isRTL",
-      update_view: "Render root element in updateView method",
-      IInputsAndIOutputs: "Define IInputs and IOutputs Type. They should match with ControlManifest.",
+      update_view:
+        "Render Root element in updateView method using ReactDOM.createRoot",
+      IInputsAndIOutputs:
+        "Ensure IInputs and IOutputs in ManifestTypes.d.ts match the definitions in ControlManifest.Input.xml",
       lifecycle_methods: [
-        "init - Initialize state and context",
-        "updateView - Render Root element with current props/state and change return type of method to React.Element if necessary",
-        "getOutputs - Return any output properties",
-        "destroy - Clean up resources if needed"
+        "init - Initialize state and context, prepare container",
+        "updateView - Render Root element, pass context and props/state, consider returning React.Element if needed",
+        "getOutputs - Return output properties if applicable",
+        "destroy - Properly unmount React components and clean up resources",
       ],
-      check_Errors: "Ensure no TypeScript errors in the generated code"
-    }
+      check_Errors:
+        "Ensure the generated code compiles without TypeScript errors and reiterate until all errors are fixed",
+      runtime_validation:
+        "Run and validate the control until no runtime errors are observed",
+      re_edit:
+        "Iteratively fix and re-edit all component/control files (including styles, root, main component, and manifest integration) until there are no TypeScript, ESLint, or runtime errors. The final code must be build-ready.",
+      create_files: [
+        `src/${name}Root.tsx - Root component containing FluentProvider (must be created)`,
+        `src/components/${name}.tsx - Main component implementation (must be created)`,
+        `src/styles/${name}Styles.ts - Component-specific styles (must be created)`,
+      ],
+      file_restrictions:
+        "Do not create a new index.tsx file for lifecycle methods. Always use the existing index.ts file for lifecycle logic.",
+      build_commands: [
+        "Run `npm run build` to validate compilation",
+        "Run `npm start watch` (or equivalent PCF CLI command) to test the control live",
+      ],
+      quality_gate:
+        "Do not stop until the code passes TypeScript compilation, ESLint checks, and builds successfully with no errors.",
+      // New explicit sections added below
+      mandatory_architecture_rules: [
+        "`FluentProvider` appears only in the Root component — never in child components.",
+        `Required files (all must exist): src/${name}Root.tsx, src/components/${name}.tsx, src/styles/${name}Styles.ts`,
+        "Do not create a new index.tsx; always use the existing index.ts for lifecycle integration.",
+      ],
+      pcf_lifecycle_integration: [
+        "init – Prepare container and state",
+        "updateView – Render the Root via ReactDOM.createRoot (must wrap all content)",
+        "getOutputs – Return outputs if applicable",
+        "destroy – Cleanly unmount and release resources",
+      ],
+      quality_iteration_requirements: {
+        iterate_until: [
+          "0 TypeScript errors",
+          "0 ESLint issues",
+          "No runtime errors during execution",
+          "Successful `npm run build`",
+        ],
+        visual_and_behavioral: [
+          "Visual fidelity with reference PNG",
+          "Proper theme + RTL behavior",
+        ],
+        must_support: [
+          "Light/Dark detection: context.fluentDesignLanguage?.isDarkTheme",
+          "RTL detection: context.userSettings.isRTL",
+          "Fluent UI v9 design tokens (no hard-coded colors, spacing, typography)",
+        ],
+      },
+      validation_commands: {
+        compile: "npm run build",
+        live_test: "npm start watch (or equivalent PCF CLI command)",
+      },
+      completion_definition:
+        "The control is complete only when it is: compilation-ready, lint-clean, runtime-stable, architecturally compliant (single Root provider, required files present), aligned with the reference PNG (visual fidelity), and theming + RTL capable. If any criterion fails, re-edit and re-validate before marking done.",
+    },
   };
 
   const implementationRequirements = {
     styling_requirements: [
-      "Use makeStyles with Fluent UI design tokens exclusively",
-      "Never use hard-coded colors, spacing, or typography values",
-      "Support both light and dark themes automatically",
-      "Implement RTL support using CSS logical properties",
-      "Use semantic color tokens (e.g., colorNeutralBackground1)"
-    ],
-    accessibility_requirements: [
-      "Implement WCAG 2.1 AA compliance",
-      "Use semantic HTML elements and proper ARIA attributes",
-      "Ensure keyboard navigation support",
-      "Provide proper focus management",
-      "Include accessible names and descriptions"
-    ],
-    performance_requirements: [
-      "Use React.memo for pure components when appropriate",
-      "Implement useMemo for expensive calculations", 
-      "Use useCallback for event handlers",
-      "Avoid inline object/function creation in render",
-      "Implement proper dependency arrays in hooks"
+      "Use makeStyles with Fluent UI design tokens exclusively.",
+      "Do not hard-code colors, spacing, or typography values.",
+      "Support both light and dark themes automatically.",
+      "Implement RTL support using CSS logical properties.",
+      "Use semantic Fluent UI tokens (e.g., colorNeutralBackground1).",
     ],
     typescript_requirements: [
-      "Use TypeScript strict mode",
-      "Define proper interfaces for all props and state",
-      "Include proper error handling with try-catch blocks",
-      "Use proper typing for all variables and functions"
-    ]
+      "Enable strict mode in TypeScript.",
+      "Define proper interfaces for all props and state.",
+      "Use try-catch for error handling where appropriate.",
+      "Apply strict typing for all variables and functions.",
+    ],
   };
 
   return {
-    content: [{
-      type: "text", 
-      text: JSON.stringify({
-        component_name: name,
-        pcf_requirements: pcfRequirements,
-        implementation_requirements: implementationRequirements,
-        component_specifications: {
-          name,
-          props: props || {},
-          state: state || {},
-          accessibility_features: accessibility_features || {},
-          design_tokens: design_tokens || {},
-          pcf_context: pcf_context || {}
-        },
-        files_to_create: [
-          `src/Root.tsx - Root component with FluentProvider`,
-          `src/components/${name}.tsx - Main component implementation`,
-          `src/components/index.ts - Barrel exports`,
-          `src/styles/${name}Styles.ts - Component-specific styles`
-        ],
-        architecture_notes: [
-          "Root element should wrap the entire control with FluentProvider",
-          "updateView method should render the Root element",
-          "Individual components should NOT include FluentProvider",
-          "Use PCF context for theme and RTL detection",
-          "Follow PCF control lifecycle methods"
-        ],
-        quality_gates: [
-          "Accessibility score >= 85%",
-          "Performance optimized with proper memoization", 
-          "Full TypeScript strict mode compliance",
-          "Fluent UI design system compliance"
-        ]
-      })
-    }]
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify({
+          component_name: name,
+          pcf_requirements: pcfRequirements,
+          implementation_requirements: implementationRequirements,
+          component_specifications: {
+            name,
+            props: props || {},
+            state: state || {},
+            accessibility_features: accessibility_features || {},
+            design_tokens: design_tokens || {},
+            pcf_context: pcf_context || {},
+          },
+          architecture_notes: [
+            "Root element must wrap the entire control with FluentProvider.",
+            "updateView must render the Root element.",
+            "Individual components must not include FluentProvider.",
+            "Use PCF context for theme and RTL detection.",
+            "Follow standard PCF lifecycle methods.",
+          ],
+          quality_gates: [
+            "Accessibility score must be >= 85%.",
+            "Performance must be optimized with proper memoization.",
+            "Strict TypeScript compliance.",
+            "Fluent UI v9 design system compliance.",
+            "All compilation and runtime errors must be resolved before completion.",
+          ],
+          build_validation: [
+            "Always run `npm run build` after code generation.",
+            "Always run `npm start watch` to validate runtime execution.",
+          ],
+        }),
+      },
+    ],
   };
 }
 
@@ -173,85 +221,6 @@ async function generateStyles(args) {
   };
 }
 
-async function validateAccessibility(args) {
-  const { component_code } = args;
-
-  const accessibilityValidation = {
-    wcag_compliance_checklist: {
-      "1.1.1 Non-text Content": "All images have alt text or are decorative",
-      "1.4.3 Contrast (Minimum)": "Color contrast ratio meets 4.5:1 for normal text",
-      "1.4.11 Non-text Contrast": "UI components have 3:1 contrast ratio",
-      "2.1.1 Keyboard": "All functionality available from keyboard",
-      "2.1.2 No Keyboard Trap": "Focus can move away from component",
-      "2.4.3 Focus Order": "Focus order is logical and meaningful",
-      "2.4.7 Focus Visible": "Focus indicator is visible",
-      "3.2.1 On Focus": "No unexpected context changes on focus",
-      "4.1.1 Parsing": "Valid HTML/ARIA markup",
-      "4.1.2 Name, Role, Value": "All elements have accessible names"
-    },
-    validation_criteria: [
-      "Proper ARIA attributes and roles implementation",
-      "Semantic HTML element usage",
-      "Keyboard navigation support",
-      "Screen reader compatibility",
-      "Focus management implementation",
-      "Color contrast compliance",
-      "Alternative text for non-text content"
-    ]
-  };
-
-  // Simple heuristic analysis - in real implementation, would use proper AST parsing
-  const issues = [];
-  const warnings = [];
-  const suggestions = [];
-
-  // Basic code analysis
-  if (!component_code.includes('aria-label') && !component_code.includes('aria-labelledby')) {
-    issues.push("Missing accessible name - implement aria-label or aria-labelledby");
-  }
-
-  if (!component_code.includes('role=') && !component_code.includes('semantic')) {
-    warnings.push("Consider using semantic HTML elements or explicit ARIA roles");
-  }
-
-  if (!component_code.includes('onKeyDown') && !component_code.includes('keyboard')) {
-    suggestions.push("Implement keyboard event handling for interactive elements");
-  }
-
-  const accessibilityScore = Math.max(0, 100 - (issues.length * 20) - (warnings.length * 10));
-
-  return {
-    content: [{
-      type: "text",
-      text: JSON.stringify({
-        accessibility_score: accessibilityScore,
-        wcag_compliance_checklist: accessibilityValidation.wcag_compliance_checklist,
-        validation_criteria: accessibilityValidation.validation_criteria,
-        analysis_results: {
-          issues,
-          warnings,
-          suggestions
-        },
-        compliance_levels: {
-          "WCAG 2.1 A": issues.length === 0,
-          "WCAG 2.1 AA": issues.length === 0 && warnings.length <= 2,
-          "WCAG 2.1 AAA": issues.length === 0 && warnings.length === 0
-        },
-        remediation_priority: issues.length > 0 ? "High - Fix critical accessibility issues" :
-                             warnings.length > 0 ? "Medium - Address accessibility warnings" :
-                             "Low - Consider accessibility enhancements",
-        next_steps: [
-          "Run automated accessibility tests with jest-axe",
-          "Perform manual testing with screen readers",
-          "Test keyboard navigation thoroughly",
-          "Validate color contrast ratios",
-          "Test with Windows High Contrast mode"
-        ]
-      })
-    }]
-  };
-}
-
 async function getInstructions(args) {
   const { instruction_type } = args;
 
@@ -286,85 +255,6 @@ async function getInstructions(args) {
         "Include all interaction states (default, hover, focus, disabled, active)",
         "Implement responsive breakpoints when specified",
         "Add animation classes for enhanced user experience"
-      ]
-    },
-
-    accessibility: {
-      overview: "Ensure WCAG 2.1 AA compliance with comprehensive accessibility support",
-      pcf_accessibility_requirements: [
-        "PCF controls must be fully keyboard accessible",
-        "Support screen readers with proper ARIA implementation",
-        "Integrate with Dynamics 365 accessibility features",
-        "Handle focus management within the control boundary",
-        "Provide accessible error messaging and validation"
-      ],
-      implementation_requirements: {
-        semantic_html: [
-          "Use appropriate HTML elements (button, input, select, etc.)",
-          "Implement proper heading hierarchy when applicable",
-          "Use lists for grouped content",
-          "Apply semantic roles where HTML elements are insufficient"
-        ],
-        aria_implementation: [
-          "aria-label or aria-labelledby for all interactive elements",
-          "aria-describedby for additional context or help text",
-          "aria-expanded for collapsible content",
-          "aria-selected for selectable items",
-          "aria-invalid and aria-errormessage for form validation"
-        ],
-        keyboard_navigation: [
-          "All interactive elements accessible via Tab key",
-          "Arrow key navigation for composite widgets",
-          "Enter and Space key activation for custom controls",
-          "Escape key handling for dismissing overlays",
-          "Home/End keys for beginning/end navigation where appropriate"
-        ],
-        focus_management: [
-          "Visible focus indicators meeting contrast requirements",
-          "Logical tab order throughout the component",
-          "Focus trapping in modal or overlay scenarios",
-          "Focus restoration when dismissing overlays",
-          "Skip links for complex components"
-        ]
-      }
-    },
-
-    performance: {
-      overview: "Optimize PCF controls for enterprise-scale Dynamics 365 environments",
-      pcf_performance_considerations: [
-        "PCF controls render within Dynamics 365 forms with multiple controls",
-        "Optimize for frequent updateView calls from D365",
-        "Handle large datasets efficiently in dataset controls",
-        "Minimize bundle size for faster control loading",
-        "Implement efficient change detection for property updates"
-      ],
-      react_optimization_techniques: [
-        "Use React.memo for pure components to prevent unnecessary re-renders",
-        "Implement useMemo for expensive calculations and derived state",
-        "Use useCallback for event handlers to maintain stable references",
-        "Avoid creating objects/arrays in render methods",
-        "Implement proper dependency arrays in useEffect and useMemo"
-      ],
-      rendering_optimization: [
-        "Minimize DOM nodes and nesting depth",
-        "Use CSS transforms for animations instead of layout properties",
-        "Implement virtualization for large lists",
-        "Debounce user input handling",
-        "Use requestAnimationFrame for smooth animations"
-      ],
-      bundle_optimization: [
-        "Configure tree shaking to eliminate unused code",
-        "Use dynamic imports for optional features",
-        "Optimize Fluent UI imports (specific components vs. barrel imports)",
-        "Minimize third-party dependencies",
-        "Use production builds for deployment"
-      ],
-      memory_management: [
-        "Clean up event listeners in useEffect cleanup",
-        "Dispose of subscriptions and timers properly",
-        "Avoid memory leaks in closures",
-        "Use WeakMap/WeakSet for object associations",
-        "Monitor memory usage in development"
       ]
     }
   };
@@ -444,17 +334,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       }
     },
     {
-      name: "validate_accessibility",
-      description: "Validate component accessibility compliance against WCAG 2.1 AA standards",
-      inputSchema: {
-        type: "object",
-        properties: {
-          component_code: { type: "string", description: "Component code to validate" }
-        },
-        required: ["component_code"]
-      }
-    },
-    {
       name: "get_instructions",
       description: "Get comprehensive PCF control development instructions and best practices",
       inputSchema: {
@@ -462,7 +341,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         properties: {
           instruction_type: {
             type: "string",
-            enum: ["styling", "accessibility", "performance"],
+            enum: ["styling"],
             description: "Type of instructions needed"
           }
         },
@@ -478,8 +357,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       return await generateComponent(request.params.arguments || {});
     case "generate_styles":
       return await generateStyles(request.params.arguments || {});
-    case "validate_accessibility":
-      return await validateAccessibility(request.params.arguments || {});
     case "get_instructions":
       return await getInstructions(request.params.arguments || {});
     default:

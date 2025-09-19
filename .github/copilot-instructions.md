@@ -97,14 +97,18 @@ Always use `get_instructions` tool from each MCP server as the **first step** to
 - `get_instructions`: Get scaffolding instructions for project types
 
 ### **PCFControlManager MCP Server** (`pcf-control-manager-mcp`)
-**Purpose**: Generate and modify PCF control components with Fluent UI v9
-**Connection**: `stdio://pcf-control-manager-mcp`
 
-**Available Tools**:
-- `generate_component`: Create React component requirements and specifications
-- `generate_styles`: Generate styling requirements using Fluent UI design tokens
-- `validate_accessibility`: Check component accessibility compliance
-- `get_instructions`: Get PCF development instructions
+**Purpose**  
+Generate and evolve PCF control components (React + Fluent UI v9) that strictly match the reference PNG in the `docs` folder (if present—this is mandatory). Enforces architectural, styling, accessibility, and build quality gates.
+
+**Connection**  
+`stdio://pcf-control-manager-mcp`
+
+**Available Tools**
+
+- `generate_component` – Produces architecture + implementation requirements for a control
+- `generate_styles` – Generates style specifications using Fluent UI design tokens
+- `get_instructions` – Returns development guidelines (e.g., styling rules)
 
 ### **HighchartsManager MCP Server** (`highcharts-manager-mcp`)
 **Purpose**: Generate accessible, theme-aware Highcharts components for data visualization
