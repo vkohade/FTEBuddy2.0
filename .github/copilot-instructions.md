@@ -97,28 +97,67 @@ Always use `get_instructions` tool from each MCP server as the **first step** to
 - `get_instructions`: Get scaffolding instructions for project types
 
 ### **PCFControlManager MCP Server** (`pcf-control-manager-mcp`)
-**Purpose**: Generate and modify PCF control components with Fluent UI v9 ensuring component creation and styling strictly follow the reference image (png) in the docs folder, if available (mandatory).
-**Connection**: `stdio://pcf-control-manager-mcp`
 
-**Available Tools**:
-- `generate_component`: Create React component requirements and specifications
-- `generate_styles`: Generate styling requirements using Fluent UI design tokens
-- `get_instructions`: Get PCF development instructions
+**Purpose**  
+Generate and evolve PCF control components (React + Fluent UI v9) that strictly match the reference PNG in the `docs` folder (if present—this is mandatory). Enforces architectural, styling, accessibility, and build quality gates.
 
-**Additional Orchestration Rules (PCFControlManager specific):**  
-- Always enforce **FluentProvider only at the Root element**, never in child components.  
-- Always create:  
-  - `src/${name}Root.tsx` (Root with FluentProvider)  
-  - `src/components/${name}.tsx` (main component)  
-  - `src/styles/${name}Styles.ts` (styles)  
-- Never create a new `index.tsx` file for lifecycle methods — always use the existing `index.ts`.  
-- Retry and re-edit automatically until build-ready:  
-  - Fix all TypeScript errors  
-  - Fix all ESLint issues  
-  - Fix runtime issues found during execution  
-  - Ensure the control compiles and runs with `npm run build` and `npm start watch`  or else re-iterate until errors are resolved.
-- Do not consider the task complete until the generated PCF control is **compilation-ready, lint-clean, and runtime-stable**.  
+**Connection**  
+`stdio://pcf-control-manager-mcp`
 
+**Available Tools**
+
+- `generate_component` – Produces architecture + implementation requirements for a control
+- `generate_styles` – Generates style specifications using Fluent UI design tokens
+- `get_instructions` – Returns development guidelines (e.g., styling rules)
+
+**Mandatory Architectural Rules**
+
+- `FluentProvider` appears only in the Root component—never in child components.
+- Required files (all must exist):
+  - `src/${name}Root.tsx` – Root wrapper with `FluentProvider`
+  - `src/components/${name}.tsx` – Main component logic (no provider)
+  - `src/styles/${name}Styles.ts` – Styles using `makeStyles` + design tokens
+- Do not create a new `index.tsx`; always use the existing `index.ts` for lifecycle integration.
+
+**PCF Lifecycle Integration**
+
+- `init` – Prepare container and state
+- `updateView` – Render the Root via `ReactDOM.createRoot` (must wrap all content)
+- `getOutputs` – Return outputs if applicable
+- `destroy` – Cleanly unmount and release resources
+
+**Quality & Iteration Requirements**  
+Iterate until all are true:
+
+- 0 TypeScript errors
+- 0 ESLint issues
+- No runtime errors during execution
+- Successful `npm run build`
+- Visual fidelity with reference PNG
+- Proper theme + RTL behavior
+
+Must support:
+
+- Light/Dark detection: `context.fluentDesignLanguage?.isDarkTheme`
+- RTL detection: `context.userSettings.isRTL`
+- Fluent UI v9 design tokens (no hard‑coded colors, spacing, typography)
+
+**Validation Commands**
+
+- Compile: `npm run build`
+- Live test: `npm start watch` (or equivalent PCF CLI)
+
+**Completion Definition**  
+The control is only complete when it is:
+
+- Compilation-ready
+- Lint-clean
+- Runtime-stable
+- Architecturally compliant (single Root provider, required files present)
+- Aligned with the reference PNG (visual fidelity)
+- Theming + RTL capable
+
+If any criterion fails, re-edit and re-validate before marking done.
 
 ### **HighchartsManager MCP Server** (`highcharts-manager-mcp`)
 **Purpose**: Generate accessible, theme-aware Highcharts components for data visualization
