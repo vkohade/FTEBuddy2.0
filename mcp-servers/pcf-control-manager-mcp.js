@@ -24,7 +24,7 @@ async function generateComponent(args) {
       "Import from @fluentui/react-components (makeStyles, tokens, FluentProvider, webLightTheme, webDarkTheme).",
       "Import from @fluentui/react-icons as defined in component_spec.required_icons.",
       "Use React hooks (useState, useCallback, useId, useMemo, useEffect) as needed.",
-      "Always use double quotes (\") for import statements (e.g., import { KPIDashboardRoot } from \"./src/KPIDashboardRoot\";) and never convert them to single quotes",
+      'Always use double quotes ("") for import statements (e.g., import { KPIDashboardRoot } from "./src/KPIDashboardRoot";) and do not convert them to single quotes.',
     ],
     pcf_integration: {
       context_usage:
@@ -60,6 +60,41 @@ async function generateComponent(args) {
       ],
       quality_gate:
         "Do not stop until the code passes TypeScript compilation, ESLint checks, and builds successfully with no errors.",
+      // New explicit sections added below
+      mandatory_architecture_rules: [
+        "`FluentProvider` appears only in the Root component — never in child components.",
+        `Required files (all must exist): src/${name}Root.tsx, src/components/${name}.tsx, src/styles/${name}Styles.ts`,
+        "Do not create a new index.tsx; always use the existing index.ts for lifecycle integration.",
+      ],
+      pcf_lifecycle_integration: [
+        "init – Prepare container and state",
+        "updateView – Render the Root via ReactDOM.createRoot (must wrap all content)",
+        "getOutputs – Return outputs if applicable",
+        "destroy – Cleanly unmount and release resources",
+      ],
+      quality_iteration_requirements: {
+        iterate_until: [
+          "0 TypeScript errors",
+          "0 ESLint issues",
+          "No runtime errors during execution",
+          "Successful `npm run build`",
+        ],
+        visual_and_behavioral: [
+          "Visual fidelity with reference PNG",
+          "Proper theme + RTL behavior",
+        ],
+        must_support: [
+          "Light/Dark detection: context.fluentDesignLanguage?.isDarkTheme",
+          "RTL detection: context.userSettings.isRTL",
+          "Fluent UI v9 design tokens (no hard-coded colors, spacing, typography)",
+        ],
+      },
+      validation_commands: {
+        compile: "npm run build",
+        live_test: "npm start watch (or equivalent PCF CLI command)",
+      },
+      completion_definition:
+        "The control is complete only when it is: compilation-ready, lint-clean, runtime-stable, architecturally compliant (single Root provider, required files present), aligned with the reference PNG (visual fidelity), and theming + RTL capable. If any criterion fails, re-edit and re-validate before marking done.",
     },
   };
 
@@ -74,7 +109,7 @@ async function generateComponent(args) {
     typescript_requirements: [
       "Enable strict mode in TypeScript.",
       "Define proper interfaces for all props and state.",
-      "Use try-catch for error handling.",
+      "Use try-catch for error handling where appropriate.",
       "Apply strict typing for all variables and functions.",
     ],
   };
