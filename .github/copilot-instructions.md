@@ -110,6 +110,16 @@ Generate and evolve PCF control components (React + Fluent UI v9) that strictly 
 - `generate_styles` – Generates style specifications using Fluent UI design tokens
 - `get_instructions` – Returns development guidelines (e.g., styling rules)
 
+**Mandatory Rule**
+Iterate until all are true:
+
+- 0 TypeScript errors
+- 0 ESLint issues
+- No runtime errors during execution
+- Successful `npm run build`
+- Visual fidelity with reference PNG
+- Proper theme + RTL behavior
+
 ### **HighchartsManager MCP Server** (`highcharts-manager-mcp`)
 **Purpose**: Generate accessible, theme-aware Highcharts components for data visualization
 **Connection**: `stdio://highcharts-manager-mcp`
